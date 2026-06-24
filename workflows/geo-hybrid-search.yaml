@@ -1,0 +1,43 @@
+name: Geo Hybrid Search
+description: RRF hybrid search with geo_distance filter
+
+tags:
+  - sg-food-demo
+  - search
+  - geo
+
+inputs:
+  - name: query_text
+    type: string
+    required: true
+  - name: lat
+    type: string
+    required: true
+  - name: lon
+    type: string
+    required: true
+  - name: radius_m
+    type: string
+    required: false
+
+consts:
+  api_base: "__API_BASE__"
+
+triggers:
+  - type: manual
+
+steps:
+  - name: geo_compare
+    type: http
+    with:
+      method: POST
+      url: "{{ consts.api_base }}/search/compare"
+      headers:
+        Content-Type: application/json
+      body:
+        query: "{{ inputs.query_text }}"
+        geo:
+          lat: "{{ inputs.lat }}"
+          lon: "{{ inputs.lon }}"
+          radius_m: "{{ inputs.radius_m | default: 1500 }}"
+        size: 10

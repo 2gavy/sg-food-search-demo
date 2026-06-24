@@ -1,0 +1,19 @@
+# Environment
+.env
+.elastic-credentials
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Data generated at runtime
+data/local_cases.jsonl
+data/sg_food_corpus.jsonl
+workflows/generated/
+
+# Node
+web/node_modules/
+web/dist/
+
+# IDE
+.DS_Store

@@ -1,0 +1,45 @@
+name: Keyword Search
+description: BM25 lexical search against sg_food_corpus
+
+tags:
+  - sg-food-demo
+  - search
+
+inputs:
+  - name: query_text
+    type: string
+    description: Search query
+    required: true
+  - name: size
+    type: string
+    description: Number of results (default 10)
+    required: false
+
+consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
+  index_name: "sg_food_corpus_current"
+
+triggers:
+  - type: manual
+
+steps:
+  - name: search
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.index_name }}"
+      query: |
+        {
+          "size": {{ inputs.size | default: 10 }},
+          "query": {
+            "bool": {
+              "must": [{
+                "multi_match": {
+                  "query": "{{ inputs.query_text }}",
+                  "fields": ["title^3", "description", "signature_dish^2"]
+                }
+              }],
+              "filter": [{"bool": {"must_not": [{"term": {"doc_type": "food_guide"}}]}}]
+            }
+          }
+        }

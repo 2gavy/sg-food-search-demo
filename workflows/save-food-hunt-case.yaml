@@ -1,0 +1,37 @@
+name: Save Food Hunt Case
+description: Persist hybrid search shortlist to sg_food_hunt_cases index
+
+tags:
+  - sg-food-demo
+  - cases
+
+inputs:
+  - name: title
+    type: string
+    required: true
+  - name: user_query
+    type: string
+    required: true
+  - name: shortlist_json
+    type: string
+    description: JSON array of shortlist items
+    required: true
+
+consts:
+  api_base: "__API_BASE__"
+
+triggers:
+  - type: manual
+
+steps:
+  - name: save_case
+    type: http
+    with:
+      method: POST
+      url: "{{ consts.api_base }}/cases"
+      headers:
+        Content-Type: application/json
+      body:
+        title: "{{ inputs.title }}"
+        user_query: "{{ inputs.user_query }}"
+        shortlist: "{{ inputs.shortlist_json | json_parse }}"

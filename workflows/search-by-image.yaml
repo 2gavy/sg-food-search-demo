@@ -1,0 +1,31 @@
+name: Search By Image
+description: Multimodal omni image search via FastAPI compare-image endpoint
+
+tags:
+  - sg-food-demo
+  - search
+  - multimodal
+
+inputs:
+  - name: dish_id
+    type: string
+    description: Bundled dish id e.g. chicken_rice
+    required: true
+
+consts:
+  api_base: "__API_BASE__"
+
+triggers:
+  - type: manual
+
+steps:
+  - name: image_search
+    type: http
+    with:
+      method: POST
+      url: "{{ consts.api_base }}/search/compare-image"
+      headers:
+        Content-Type: application/json
+      body:
+        dish_id: "{{ inputs.dish_id }}"
+        size: 10

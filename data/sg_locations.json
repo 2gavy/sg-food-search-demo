@@ -1,0 +1,72 @@
+{
+  "hawker_centres": [
+    {"name": "Maxwell Food Centre", "lat": 1.2804, "lon": 103.8446, "planning_area": "Downtown Core", "mrt": "Tanjong Pagar"},
+    {"name": "Lau Pa Sat", "lat": 1.2806, "lon": 103.8505, "planning_area": "Downtown Core", "mrt": "Raffles Place"},
+    {"name": "Amoy Street Food Centre", "lat": 1.2824, "lon": 103.8486, "planning_area": "Downtown Core", "mrt": "Telok Ayer"},
+    {"name": "Chinatown Complex", "lat": 1.2820, "lon": 103.8434, "planning_area": "Outram", "mrt": "Chinatown"},
+    {"name": "Old Airport Road Food Centre", "lat": 1.3048, "lon": 103.8862, "planning_area": "Geylang", "mrt": "Mountbatten"},
+    {"name": "Tekka Centre", "lat": 1.3065, "lon": 103.8503, "planning_area": "Rochor", "mrt": "Little India"},
+    {"name": "Newton Food Centre", "lat": 1.3114, "lon": 103.8386, "planning_area": "Newton", "mrt": "Newton"},
+    {"name": "Chomp Chomp Food Centre", "lat": 1.3645, "lon": 103.8658, "planning_area": "Serangoon", "mrt": "Serangoon"},
+    {"name": "Ghim Moh Market & Food Centre", "lat": 1.3102, "lon": 103.7590, "planning_area": "Queenstown", "mrt": "Buona Vista"},
+    {"name": "ABC Brickworks Market", "lat": 1.2845, "lon": 103.8038, "planning_area": "Bukit Merah", "mrt": "Redhill"},
+    {"name": "Tiong Bahru Market", "lat": 1.2858, "lon": 103.8324, "planning_area": "Bukit Merah", "mrt": "Tiong Bahru"},
+    {"name": "Golden Mile Food Centre", "lat": 1.3025, "lon": 103.8654, "planning_area": "Kallang", "mrt": "Lavender"},
+    {"name": "Berseh Food Centre", "lat": 1.3056, "lon": 103.8542, "planning_area": "Rochor", "mrt": "Bugis"},
+    {"name": "Hong Lim Market & Food Centre", "lat": 1.2867, "lon": 103.8468, "planning_area": "Downtown Core", "mrt": "Clarke Quay"},
+    {"name": "Adam Road Food Centre", "lat": 1.3241, "lon": 103.8141, "planning_area": "Tanglin", "mrt": "Botanic Gardens"},
+    {"name": "East Coast Lagoon Food Village", "lat": 1.3068, "lon": 103.9352, "planning_area": "Bedok", "mrt": "Marine Parade"},
+    {"name": "Bedok Interchange Hawker Centre", "lat": 1.3247, "lon": 103.9300, "planning_area": "Bedok", "mrt": "Bedok"},
+    {"name": "Yishun Park Hawker Centre", "lat": 1.4265, "lon": 103.8358, "planning_area": "Yishun", "mrt": "Yishun"},
+    {"name": "Jurong West Hawker Centre", "lat": 1.3404, "lon": 103.7058, "planning_area": "Jurong West", "mrt": "Boon Lay"},
+    {"name": "Pasir Panjang Food Centre", "lat": 1.2765, "lon": 103.7912, "planning_area": "Queenstown", "mrt": "Pasir Panjang"},
+    {"name": "Clementi 448 Market & Food Centre", "lat": 1.3127, "lon": 103.7649, "planning_area": "Clementi", "mrt": "Clementi"},
+    {"name": "Clementi Central Market & Food Centre", "lat": 1.3150, "lon": 103.7645, "planning_area": "Clementi", "mrt": "Clementi"}
+  ],
+  "mrt_stations": [
+    {"name": "Bugis", "lat": 1.3006, "lon": 103.8559},
+    {"name": "Raffles Place", "lat": 1.2839, "lon": 103.8515},
+    {"name": "Tanjong Pagar", "lat": 1.2764, "lon": 103.8455},
+    {"name": "Telok Ayer", "lat": 1.2823, "lon": 103.8488},
+    {"name": "Chinatown", "lat": 1.2844, "lon": 103.8435},
+    {"name": "Little India", "lat": 1.3068, "lon": 103.8495},
+    {"name": "Orchard", "lat": 1.3040, "lon": 103.8319},
+    {"name": "Clarke Quay", "lat": 1.2884, "lon": 103.8465},
+    {"name": "City Hall", "lat": 1.2932, "lon": 103.8520},
+    {"name": "Marina Bay", "lat": 1.2760, "lon": 103.8545}
+  ],
+  "landmarks": [
+    {"name": "One Raffles Quay", "lat": 1.2812, "lon": 103.8518},
+    {"name": "Mapletree Business City", "lat": 1.2750, "lon": 103.8020},
+    {"name": "National Gallery Singapore", "lat": 1.2902, "lon": 103.8515}
+  ],
+  "dishes": [
+    {"id": "chicken_rice", "name": "Hainanese Chicken Rice", "short": "Chicken Rice", "emoji": "🍗", "color": "#F5DEB3"},
+    {"id": "laksa", "name": "Katong Laksa", "short": "Laksa", "emoji": "🍜", "color": "#FF6B35"},
+    {"id": "satay", "name": "Satay", "short": "Satay", "emoji": "🍢", "color": "#8B4513"},
+    {"id": "char_kway_teow", "name": "Char Kway Teow", "short": "Char Kway Teow", "emoji": "🥡", "color": "#2F1810"},
+    {"id": "roti_prata", "name": "Roti Prata", "short": "Roti Prata", "emoji": "🫓", "color": "#DAA520"},
+    {"id": "bak_kut_teh", "name": "Bak Kut Teh", "short": "Bak Kut Teh", "emoji": "🍲", "color": "#696969"},
+    {"id": "fish_soup", "name": "Teochew Fish Soup", "short": "Fish Soup", "emoji": "🐟", "color": "#E8F4F8"},
+    {"id": "mee_rebus", "name": "Mee Rebus", "short": "Mee Rebus", "emoji": "🍜", "color": "#CD853F"},
+    {"id": "nasi_lemak", "name": "Nasi Lemak", "short": "Nasi Lemak", "emoji": "🍚", "color": "#228B22"},
+    {"id": "rojak", "name": "Rojak", "short": "Rojak", "emoji": "🥗", "color": "#8B0000"},
+    {"id": "hokkien_mee", "name": "Hokkien Mee", "short": "Hokkien Mee", "emoji": "🍝", "color": "#A0522D"},
+    {"id": "carrot_cake", "name": "Chai Tow Kway", "short": "Carrot Cake", "emoji": "🥕", "color": "#D2691E"},
+    {"id": "oyster_omelette", "name": "Orh Luak", "short": "Orh Luak", "emoji": "🦪", "color": "#F4A460"},
+    {"id": "kaya_toast", "name": "Kaya Toast Set", "short": "Kaya Toast", "emoji": "🍞", "color": "#FFE4B5"},
+    {"id": "mee_siam", "name": "Mee Siam", "short": "Mee Siam", "emoji": "🍜", "color": "#FF4500"},
+    {"id": "biryani", "name": "Biryani", "short": "Biryani", "emoji": "🍛", "color": "#B8860B"},
+    {"id": "yong_tau_foo", "name": "Yong Tau Foo", "short": "Yong Tau Foo", "emoji": "🥬", "color": "#90EE90"},
+    {"id": "wonton_mee", "name": "Wonton Mee", "short": "Wonton Mee", "emoji": "🥟", "color": "#FFD700"},
+    {"id": "popiah", "name": "Popiah", "short": "Popiah", "emoji": "🌯", "color": "#DEB887"},
+    {"id": "ice_kacang", "name": "Ice Kacang", "short": "Ice Kacang", "emoji": "🍧", "color": "#FF69B4"}
+  ],
+  "restaurant_clusters": [
+    {"name": "Dempsey Hill", "lat": 1.3057, "lon": 103.8159, "planning_area": "Tanglin"},
+    {"name": "Keong Saik Road", "lat": 1.2795, "lon": 103.8418, "planning_area": "Outram"},
+    {"name": "Holland Village", "lat": 1.3110, "lon": 103.7958, "planning_area": "Bukit Timah"},
+    {"name": "Katong", "lat": 1.3052, "lon": 103.9045, "planning_area": "Marine Parade"},
+    {"name": "Ann Siang Hill", "lat": 1.2815, "lon": 103.8458, "planning_area": "Downtown Core"}
+  ]
+}

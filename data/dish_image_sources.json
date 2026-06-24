@@ -1,0 +1,142 @@
+{
+  "chicken_rice": {
+    "source": "unsplash",
+    "url": "https://images.unsplash.com/photo-1744444202869-54debf97b285?w=640&h=640&fit=crop&q=85",
+    "page": "https://unsplash.com/photos/-X4tkvjVSco",
+    "author": "Chee Kee",
+    "license": "Unsplash License"
+  },
+  "laksa": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Katong_Laksa.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Katong_Laksa.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "satay": {
+    "source": "unsplash",
+    "url": "https://images.unsplash.com/photo-1751212352288-d5811798804c?w=640&h=640&fit=crop&q=85",
+    "page": "https://unsplash.com/photos/6P5wShC1sDI",
+    "author": "Kevin kevin",
+    "license": "Unsplash License"
+  },
+  "char_kway_teow": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Charkwayteow.JPG?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Charkwayteow.JPG",
+    "author": "Chen Siyuan",
+    "license": "Public domain"
+  },
+  "roti_prata": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Roti_prata.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Roti_prata.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "bak_kut_teh": {
+    "source": "unsplash",
+    "url": "https://images.unsplash.com/photo-1663862333571-71cc88992d0c?w=640&h=640&fit=crop&q=85",
+    "page": "https://unsplash.com/photos/NBjK8yRWd5E",
+    "author": "Unsplash contributor (NBjK8yRWd5E)",
+    "license": "Unsplash License"
+  },
+  "fish_soup": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fish_soup.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Fish_soup.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "mee_rebus": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Mee_Rebus_by_Banej,_Singapore_October_2017.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Mee_Rebus_by_Banej,_Singapore_October_2017.jpg",
+    "author": "Banej",
+    "license": "Creative Commons (see file page)"
+  },
+  "nasi_lemak": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Nasi_Lemak_biasa_with_kangkung.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Nasi_Lemak_biasa_with_kangkung.jpg",
+    "author": "Dr.Francostein1975",
+    "license": "Creative Commons (see file page)"
+  },
+  "rojak": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Rojak_in_Singapore.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Rojak_in_Singapore.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "hokkien_mee": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kuala_Lumpu_Hokkienmee_20190519.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Kuala_Lumpu_Hokkienmee_20190519.jpg",
+    "author": "Rsa",
+    "license": "CC BY-SA 3.0"
+  },
+  "carrot_cake": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Chai_tow_kway.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Chai_tow_kway.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "oyster_omelette": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Oyster_omelette.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Oyster_omelette.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "kaya_toast": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kaya_Toast,_a_sweet_breakfast!.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Kaya_Toast,_a_sweet_breakfast!.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "mee_siam": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Mee_siam.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Mee_siam.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "biryani": {
+    "source": "unsplash",
+    "url": "https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?w=640&h=640&fit=crop&q=85",
+    "page": "https://unsplash.com/photos/ysmeQt1dzcw",
+    "author": "Mario Raj",
+    "license": "Unsplash License"
+  },
+  "yong_tau_foo": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ampang_yong_tau_foo.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Ampang_yong_tau_foo.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "wonton_mee": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Singapore_Wonton_noodles_(cropped).jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Singapore_Wonton_noodles_(cropped).jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "popiah": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Popiah.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Popiah.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  },
+  "ice_kacang": {
+    "source": "wikimedia",
+    "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Singapore_food_-_Ice_kacang_at_Food_Republic_Nov_2016.jpg?width=640",
+    "page": "https://commons.wikimedia.org/wiki/File:Singapore_food_-_Ice_kacang_at_Food_Republic_Nov_2016.jpg",
+    "author": "Wikimedia Commons contributor",
+    "license": "Creative Commons (see file page)"
+  }
+}

@@ -1,0 +1,30 @@
+name: Compare Search Modes
+description: Run lexical and hybrid search and return diff for Agent Builder
+
+tags:
+  - sg-food-demo
+  - search
+
+inputs:
+  - name: query_text
+    type: string
+    description: Search query
+    required: true
+
+consts:
+  api_base: "__API_BASE__"
+
+triggers:
+  - type: manual
+
+steps:
+  - name: compare
+    type: http
+    with:
+      method: POST
+      url: "{{ consts.api_base }}/search/compare"
+      headers:
+        Content-Type: application/json
+      body:
+        query: "{{ inputs.query_text }}"
+        size: 10

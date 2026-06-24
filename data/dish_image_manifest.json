@@ -1,0 +1,242 @@
+[
+  {
+    "dish_id": "chicken_rice",
+    "dish_name": "Hainanese Chicken Rice",
+    "image_file": "chicken_rice.jpg",
+    "venue_doc_ids": [
+      "hawker_001",
+      "hawker_006",
+      "hawker_021",
+      "hawker_026",
+      "hawker_041"
+    ]
+  },
+  {
+    "dish_id": "laksa",
+    "dish_name": "Katong Laksa",
+    "image_file": "laksa.jpg",
+    "venue_doc_ids": [
+      "hawker_002",
+      "hawker_003",
+      "hawker_023",
+      "hawker_042",
+      "hawker_043"
+    ]
+  },
+  {
+    "dish_id": "satay",
+    "dish_name": "Satay",
+    "image_file": "satay.jpg",
+    "venue_doc_ids": [
+      "hawker_004",
+      "hawker_022",
+      "hawker_024",
+      "hawker_044",
+      "hawker_083"
+    ]
+  },
+  {
+    "dish_id": "char_kway_teow",
+    "dish_name": "Char Kway Teow",
+    "image_file": "char_kway_teow.jpg",
+    "venue_doc_ids": [
+      "hawker_005",
+      "hawker_025",
+      "hawker_045",
+      "hawker_064",
+      "hawker_084"
+    ]
+  },
+  {
+    "dish_id": "roti_prata",
+    "dish_name": "Roti Prata",
+    "image_file": "roti_prata.jpg",
+    "venue_doc_ids": [
+      "hawker_010",
+      "hawker_030",
+      "hawker_050",
+      "hawker_065",
+      "hawker_085"
+    ]
+  },
+  {
+    "dish_id": "bak_kut_teh",
+    "dish_name": "Bak Kut Teh",
+    "image_file": "bak_kut_teh.jpg",
+    "venue_doc_ids": [
+      "hawker_086",
+      "restaurant_003",
+      "restaurant_023",
+      "restaurant_043",
+      "restaurant_063"
+    ]
+  },
+  {
+    "dish_id": "fish_soup",
+    "dish_name": "Teochew Fish Soup",
+    "image_file": "fish_soup.jpg",
+    "venue_doc_ids": [
+      "hawker_007",
+      "hawker_027",
+      "hawker_047",
+      "hawker_067",
+      "hawker_087"
+    ]
+  },
+  {
+    "dish_id": "mee_rebus",
+    "dish_name": "Mee Rebus",
+    "image_file": "mee_rebus.jpg",
+    "venue_doc_ids": [
+      "hawker_011",
+      "hawker_031",
+      "hawker_048",
+      "hawker_068",
+      "hawker_088"
+    ]
+  },
+  {
+    "dish_id": "nasi_lemak",
+    "dish_name": "Nasi Lemak",
+    "image_file": "nasi_lemak.jpg",
+    "venue_doc_ids": [
+      "hawker_009",
+      "hawker_029",
+      "hawker_049",
+      "hawker_069",
+      "hawker_089"
+    ]
+  },
+  {
+    "dish_id": "rojak",
+    "dish_name": "Rojak",
+    "image_file": "rojak.jpg",
+    "venue_doc_ids": [
+      "hawker_070",
+      "hawker_090",
+      "restaurant_007",
+      "restaurant_027",
+      "restaurant_047"
+    ]
+  },
+  {
+    "dish_id": "hokkien_mee",
+    "dish_name": "Hokkien Mee",
+    "image_file": "hokkien_mee.jpg",
+    "venue_doc_ids": [
+      "hawker_051",
+      "hawker_071",
+      "hawker_091",
+      "restaurant_008",
+      "restaurant_028"
+    ]
+  },
+  {
+    "dish_id": "carrot_cake",
+    "dish_name": "Chai Tow Kway",
+    "image_file": "carrot_cake.jpg",
+    "venue_doc_ids": [
+      "hawker_012",
+      "hawker_032",
+      "hawker_052",
+      "hawker_072",
+      "hawker_092"
+    ]
+  },
+  {
+    "dish_id": "oyster_omelette",
+    "dish_name": "Orh Luak",
+    "image_file": "oyster_omelette.jpg",
+    "venue_doc_ids": [
+      "hawker_013",
+      "hawker_033",
+      "hawker_053",
+      "hawker_073",
+      "hawker_093"
+    ]
+  },
+  {
+    "dish_id": "kaya_toast",
+    "dish_name": "Kaya Toast Set",
+    "image_file": "kaya_toast.jpg",
+    "venue_doc_ids": [
+      "hawker_014",
+      "hawker_034",
+      "hawker_054",
+      "hawker_074",
+      "hawker_094"
+    ]
+  },
+  {
+    "dish_id": "mee_siam",
+    "dish_name": "Mee Siam",
+    "image_file": "mee_siam.jpg",
+    "venue_doc_ids": [
+      "hawker_015",
+      "hawker_035",
+      "hawker_055",
+      "hawker_075",
+      "hawker_095"
+    ]
+  },
+  {
+    "dish_id": "biryani",
+    "dish_name": "Biryani",
+    "image_file": "biryani.jpg",
+    "venue_doc_ids": [
+      "hawker_016",
+      "hawker_036",
+      "hawker_056",
+      "hawker_076",
+      "hawker_096"
+    ]
+  },
+  {
+    "dish_id": "yong_tau_foo",
+    "dish_name": "Yong Tau Foo",
+    "image_file": "yong_tau_foo.jpg",
+    "venue_doc_ids": [
+      "hawker_008",
+      "hawker_017",
+      "hawker_028",
+      "hawker_037",
+      "hawker_057"
+    ]
+  },
+  {
+    "dish_id": "wonton_mee",
+    "dish_name": "Wonton Mee",
+    "image_file": "wonton_mee.jpg",
+    "venue_doc_ids": [
+      "hawker_018",
+      "hawker_038",
+      "hawker_058",
+      "hawker_078",
+      "hawker_098"
+    ]
+  },
+  {
+    "dish_id": "popiah",
+    "dish_name": "Popiah",
+    "image_file": "popiah.jpg",
+    "venue_doc_ids": [
+      "hawker_019",
+      "hawker_039",
+      "hawker_059",
+      "hawker_079",
+      "hawker_099"
+    ]
+  },
+  {
+    "dish_id": "ice_kacang",
+    "dish_name": "Ice Kacang",
+    "image_file": "ice_kacang.jpg",
+    "venue_doc_ids": [
+      "hawker_020",
+      "hawker_040",
+      "hawker_060",
+      "hawker_080",
+      "hawker_100"
+    ]
+  }
+]

@@ -1,0 +1,71 @@
+name: Hybrid Search
+description: RRF hybrid search (BM25 + kNN DiskBBQ) against sg_food_corpus
+
+tags:
+  - sg-food-demo
+  - search
+
+inputs:
+  - name: query_text
+    type: string
+    description: Search query
+    required: true
+  - name: size
+    type: string
+    description: Number of results
+    required: false
+
+consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
+  index_name: "sg_food_corpus_current"
+  inference_id: ".jina-embeddings-v5-omni-small"
+
+triggers:
+  - type: manual
+
+steps:
+  - name: embed_query
+    type: http
+    with:
+      method: POST
+      url: "{{ consts.es_url }}/_inference/embedding/{{ consts.inference_id }}"
+      headers:
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+        Content-Type: application/json
+      body:
+        input: "{{ inputs.query_text }}"
+        task_settings:
+          task: retrieval.query
+
+  - name: hybrid_search
+    type: http
+    with:
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.index_name }}/_search"
+      headers:
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+        Content-Type: application/json
+      body:
+        size: "{{ inputs.size | default: 10 }}"
+        retriever:
+          rrf:
+            retrievers:
+              - standard:
+                  query:
+                    bool:
+                      must:
+                        - multi_match:
+                            query: "{{ inputs.query_text }}"
+                            fields: ["title^3", "description", "signature_dish^2"]
+                      filter:
+                        - bool:
+                            must_not:
+                              - term:
+                                  doc_type: food_guide
+              - knn:
+                  field: embedding
+                  query_vector: "{{ steps.embed_query.output.text_embedding[0].embedding }}"
+                  k: "{{ inputs.size | default: 10 }}"
+                  num_candidates: 100
+            rank_window_size: 50

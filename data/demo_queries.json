@@ -1,0 +1,167 @@
+[
+  {
+    "id": "rainy_soup_cbd",
+    "label": "Rainy-day soup near Raffles Place",
+    "query": "Warm soupy comfort food for a rainy afternoon near Raffles Place",
+    "lat": 1.2839,
+    "lon": 103.8515,
+    "radius_m": 1200,
+    "mode": "text"
+  },
+  {
+    "id": "halal_bugis",
+    "label": "Halal lunch under $5 near Bugis",
+    "query": "Halal lunch under five dollars near Bugis MRT",
+    "lat": 1.3006,
+    "lon": 103.8559,
+    "radius_m": 800,
+    "mode": "text"
+  },
+  {
+    "id": "healthy_chicken_rice",
+    "label": "Healthy chicken rice alternative",
+    "query": "Something like chicken rice but lighter and healthier",
+    "mode": "text"
+  },
+  {
+    "id": "maxwell_chicken_rice",
+    "label": "Chicken rice at Maxwell",
+    "query": "Best chicken rice at Maxwell Food Centre hawker stalls",
+    "lat": 1.2804,
+    "lon": 103.8446,
+    "radius_m": 600,
+    "mode": "text"
+  },
+  {
+    "id": "clementi_chicken_rice",
+    "label": "Chicken rice at Clementi 448",
+    "query": "Chicken rice hawker stalls at Clementi 448 Market Food Centre",
+    "lat": 1.3127,
+    "lon": 103.7649,
+    "radius_m": 800,
+    "mode": "text"
+  },
+  {
+    "id": "clementi_halal_nasi_lemak",
+    "label": "Halal nasi lemak near Clementi MRT",
+    "query": "Halal nasi lemak near Clementi MRT hawker centre",
+    "lat": 1.315,
+    "lon": 103.7645,
+    "radius_m": 700,
+    "mode": "text"
+  },
+  {
+    "id": "pedas_noodles",
+    "label": "Pedas hawker noodles (Singlish)",
+    "query": "Pedas hawker noodles makcik style",
+    "mode": "text",
+    "group": "multilingual",
+    "lang_label": "Singlish"
+  },
+  {
+    "id": "zh_halal_bugis",
+    "label": "Halal lunch near Bugis",
+    "query": "\u9760\u8fd1\u6b66\u5409\u58eb\u7684\u6e05\u771f\u5348\u9910\uff0c\u4fbf\u5b9c\u4e00\u70b9",
+    "lat": 1.3006,
+    "lon": 103.8559,
+    "radius_m": 800,
+    "mode": "text",
+    "group": "multilingual",
+    "lang_label": "\u4e2d\u6587"
+  },
+  {
+    "id": "mixed_halal_bugis",
+    "label": "Halal makan near Bugis",
+    "query": "Halal makan near Bugis \u4fbf\u5b9c",
+    "lat": 1.3006,
+    "lon": 103.8559,
+    "radius_m": 800,
+    "mode": "text",
+    "group": "multilingual",
+    "lang_label": "EN+MS+ZH"
+  },
+  {
+    "id": "ms_pedas",
+    "label": "Spicy hawker noodles",
+    "query": "Mee pedas gaya makcik dekat hawker",
+    "mode": "text",
+    "group": "multilingual",
+    "lang_label": "Melayu"
+  },
+  {
+    "id": "zh_tw_pedas",
+    "label": "Spicy hawker noodles",
+    "query": "\u5c0f\u8ca9\u8fa3\u6912\u9eb5\uff0c\u8981\u963f\u59e8\u624b\u85dd\u90a3\u7a2e",
+    "mode": "text",
+    "group": "multilingual",
+    "lang_label": "\u7e41\u9ad4"
+  },
+  {
+    "id": "ja_soup_cbd",
+    "label": "Warm soup near Raffles Place",
+    "query": "\u30ec\u30a4\u30d5\u30eb\u30ba\u30d7\u30ec\u30a4\u30b9\u8fd1\u304f\u3067\u6e29\u304b\u3044\u30b9\u30fc\u30d7\u304c\u98df\u3079\u305f\u3044",
+    "lat": 1.2839,
+    "lon": 103.8515,
+    "radius_m": 1200,
+    "mode": "text",
+    "group": "multilingual",
+    "lang_label": "\u65e5\u672c\u8a9e"
+  },
+  {
+    "id": "ko_chicken_rice",
+    "label": "Lighter chicken rice",
+    "query": "\uce58\ud0a8\ub77c\uc774\uc2a4\ucc98\ub7fc \uac00\ubccd\uace0 \uac74\uac15\ud55c \uc74c\uc2dd",
+    "mode": "text",
+    "group": "multilingual",
+    "lang_label": "\ud55c\uad6d\uc5b4"
+  },
+  {
+    "id": "hi_halal_bugis",
+    "label": "Budget halal near Bugis",
+    "query": "\u092c\u0917\u0940\u0938 \u090f\u092e\u0906\u0930\u091f\u0940 \u0915\u0947 \u092a\u093e\u0938 \u0938\u0938\u094d\u0924\u093e \u0939\u0932\u093e\u0932 \u0932\u0902\u091a",
+    "lat": 1.3006,
+    "lon": 103.8559,
+    "radius_m": 800,
+    "mode": "text",
+    "group": "multilingual",
+    "lang_label": "\u0939\u093f\u0928\u094d\u0926\u0940"
+  },
+  {
+    "id": "ta_halal_bugis",
+    "label": "Halal lunch near Bugis",
+    "query": "\u0baa\u0bc1\u0b95\u0bcd\u0b95\u0bbf\u0bb8\u0bcd MRT \u0b85\u0bb0\u0bc1\u0b95\u0bbf\u0bb2\u0bcd \u0b9a\u0bbf\u0bb1\u0bbf\u0baf \u0b9a\u0bc6\u0bb2\u0bb5\u0bbf\u0bb2\u0bcd \u0bb9\u0bb2\u0bbe\u0bb2\u0bcd \u0b89\u0ba3\u0bb5\u0bc1",
+    "lat": 1.3006,
+    "lon": 103.8559,
+    "radius_m": 800,
+    "mode": "text",
+    "group": "multilingual",
+    "lang_label": "\u0ba4\u0bae\u0bbf\u0bb4\u0bcd"
+  },
+  {
+    "id": "halal_walk_bugis",
+    "label": "Halal snack walk from Bugis Exit B",
+    "query": "Halal snack within walking distance of Bugis MRT",
+    "lat": 1.3006,
+    "lon": 103.8559,
+    "radius_m": 600,
+    "mode": "text"
+  },
+  {
+    "id": "photo_chicken_rice",
+    "label": "Photo: Chicken Rice",
+    "dish_id": "chicken_rice",
+    "mode": "photo"
+  },
+  {
+    "id": "photo_laksa",
+    "label": "Photo: Laksa",
+    "dish_id": "laksa",
+    "mode": "photo"
+  },
+  {
+    "id": "photo_satay",
+    "label": "Photo: Satay",
+    "dish_id": "satay",
+    "mode": "photo"
+  }
+]
