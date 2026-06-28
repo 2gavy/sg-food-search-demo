@@ -22,7 +22,73 @@ import {
   primeSounds,
 } from "../lib/funSounds";
 import type { ColumnVariant } from "./CompareColumn";
-import type { DemoQuery, Hit } from "../types/venue";
+import type { CompareResponse, DemoQuery, Hit } from "../types/venue";
+
+function MobileCompareTabs({
+  active,
+  result,
+  onChange,
+}: {
+  active: ColumnVariant;
+  result: CompareResponse | null;
+  onChange: (v: ColumnVariant) => void;
+}) {
+  const tabs: { id: ColumnVariant; label: string; count: number; extra?: number }[] = [
+    { id: "lexical", label: "Keywords", count: result?.lexical.hits.length ?? 0 },
+    {
+      id: "hybrid_oss",
+      label: "E5",
+      count: result?.hybrid_oss.hits.length ?? 0,
+      extra: result?.diff.hybrid_only_oss.length,
+    },
+    {
+      id: "hybrid_jina",
+      label: "Jina",
+      count: result?.hybrid_jina.hits.length ?? 0,
+      extra: result?.diff.hybrid_only_jina.length,
+    },
+  ];
+
+  return (
+    <div
+      className="lg:hidden flex gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200/80"
+      role="tablist"
+      aria-label="Compare columns"
+    >
+      {tabs.map((tab) => {
+        const selected = active === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(tab.id)}
+            className={`flex-1 min-w-0 rounded-lg px-2 py-2 text-center touch-manipulation transition-colors ${
+              selected
+                ? "bg-white shadow-sm text-slate-900"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <span className="block text-xs font-semibold">{tab.label}</span>
+            <span className="block text-[10px] tabular-nums text-slate-500">
+              {tab.count}
+              {tab.extra != null && tab.extra > 0 && (
+                <span className={selected ? "text-brand-dark" : "text-slate-400"}> · +{tab.extra}</span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function columnForHit(result: CompareResponse, docId: string): ColumnVariant {
+  if (result.hybrid_jina.hits.some((h) => h.doc_id === docId)) return "hybrid_jina";
+  if (result.hybrid_oss.hits.some((h) => h.doc_id === docId)) return "hybrid_oss";
+  return "lexical";
+}
 
 function collectMapPinCount(result: { lexical: { hits: Hit[] }; hybrid_oss: { hits: Hit[] }; hybrid_jina: { hits: Hit[] } } | null): number {
   if (!result) return 0;
@@ -49,6 +115,8 @@ export function CompareShell() {
   const [soundsOn, setSoundsOn] = useState(true);
   const [promptsOpen, setPromptsOpen] = useState(false);
   const [mobileHintDismissed, setMobileHintDismissed] = useState(false);
+  const [commandBarCompact, setCommandBarCompact] = useState(false);
+  const [mobileColumn, setMobileColumn] = useState<ColumnVariant>("hybrid_jina");
   const [isNarrow, setIsNarrow] = useState(false);
   const [mapCollapsed, setMapCollapsed] = useState(false);
   const [searchBreadcrumb, setSearchBreadcrumb] = useState<string | null>(null);
@@ -145,6 +213,7 @@ export function CompareShell() {
   const selectHit = (hit: Hit, isNew?: boolean, scrollCard = false) => {
     sfx(isNew ? playNewBadge : playSelect);
     setSelectedHit(hit);
+    focusMobileColumn(hit.doc_id);
     if (scrollCard) scrollToCard(hit.doc_id);
   };
 
@@ -190,6 +259,23 @@ export function CompareShell() {
   const showWelcome = appView === "search" && !result && !loading && !error;
   const showResults = appView === "search" && !showWelcome && (result || loading);
 
+  useEffect(() => {
+    if (isNarrow && result && !loading) {
+      setCommandBarCompact(true);
+    }
+  }, [isNarrow, result?.query, loading]);
+
+  useEffect(() => {
+    if (showWelcome) {
+      setCommandBarCompact(false);
+    }
+  }, [showWelcome]);
+
+  const focusMobileColumn = (docId: string) => {
+    if (!isNarrow || !result) return;
+    setMobileColumn(columnForHit(result, docId));
+  };
+
   const renderFoodCard = (
     hit: Hit,
     variant: ColumnVariant,
@@ -227,6 +313,9 @@ export function CompareShell() {
           photoIsUpload={photoIsUpload}
           photoSessionKey={photoSessionKey}
           searchBreadcrumb={searchBreadcrumb}
+          compact={isNarrow && commandBarCompact && appView === "search"}
+          resultQuery={result?.query ?? null}
+          onExpandCommandBar={() => setCommandBarCompact(false)}
           onAppViewChange={(v) => {
             if (v === appView) return;
             sfx(playModeSwitch);
@@ -250,6 +339,7 @@ export function CompareShell() {
           onQueryChange={setQuery}
           onSubmitText={() => {
             setPromptsOpen(false);
+            if (isNarrow) setCommandBarCompact(true);
             submitText();
           }}
           onPromptsOpenChange={setPromptsOpen}
@@ -301,6 +391,9 @@ export function CompareShell() {
                 const hit = hits?.find((h) => h.doc_id === id);
                 if (hit) {
                   selectHit(hit, true, true);
+                  if (isNarrow) {
+                    setMobileColumn(column === "jina" ? "hybrid_jina" : "hybrid_oss");
+                  }
                   if (!mapCollapsed) setMapCollapsed(false);
                 }
               }}
@@ -344,10 +437,10 @@ export function CompareShell() {
             </section>
           )}
 
-          {appView === "search" && !showWelcome && !mobileHintDismissed && isNarrow && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {appView === "search" && !showWelcome && !mobileHintDismissed && isNarrow && !commandBarCompact && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 lg:hidden">
               <p className="flex-1 leading-snug">
-                Swipe the columns horizontally — desktop shows all three beside the map.
+                After you search, the bar collapses. Use the Keywords / E5 / Jina tabs to compare columns.
               </p>
               <button
                 type="button"
@@ -391,9 +484,19 @@ export function CompareShell() {
                   </aside>
                 )}
 
-                <div className={`order-2 lg:order-1 flex-1 min-w-0 min-h-0 flex flex-col ${mapCollapsed ? "w-full" : ""}`}>
+                <div className={`order-2 lg:order-1 flex-1 min-w-0 min-h-0 flex flex-col gap-2 ${mapCollapsed ? "w-full" : ""}`}>
+                  {isNarrow && result && (
+                    <MobileCompareTabs active={mobileColumn} result={result} onChange={setMobileColumn} />
+                  )}
                   <div className="flex-1 min-h-0 overflow-x-auto scroll-touch pb-1 -mx-1 px-1 lg:mx-0 lg:px-0 lg:overflow-visible">
-                    <div className="grid grid-cols-3 gap-2 md:gap-3 items-stretch min-w-[720px] lg:min-w-0 h-full lg:min-h-0">
+                    <div
+                      className={`items-stretch h-full lg:min-h-0 ${
+                        isNarrow
+                          ? "flex flex-col min-h-[min(58vh,520px)]"
+                          : "grid grid-cols-3 gap-2 md:gap-3 min-w-[720px] lg:min-w-0"
+                      }`}
+                    >
+                    <div className={isNarrow && mobileColumn !== "lexical" ? "hidden" : "min-h-0 flex flex-col h-full"}>
                     <CompareColumn
                       title="Keywords only"
                       titleMobile="Keywords"
@@ -417,7 +520,9 @@ export function CompareShell() {
                         }),
                       )}
                     </CompareColumn>
+                    </div>
 
+                    <div className={isNarrow && mobileColumn !== "hybrid_oss" ? "hidden" : "min-h-0 flex flex-col h-full"}>
                     <CompareColumn
                       title="Open-source hybrid (E5)"
                       titleMobile="E5"
@@ -449,7 +554,9 @@ export function CompareShell() {
                         }),
                       )}
                     </CompareColumn>
+                    </div>
 
+                    <div className={isNarrow && mobileColumn !== "hybrid_jina" ? "hidden" : "min-h-0 flex flex-col h-full"}>
                     <CompareColumn
                       title="Multimodal hybrid (Jina)"
                       titleMobile="Jina"
@@ -485,6 +592,7 @@ export function CompareShell() {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           )}
         </div>

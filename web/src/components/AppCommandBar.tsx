@@ -28,6 +28,9 @@ interface Props {
   photoIsUpload: boolean;
   photoSessionKey: number;
   searchBreadcrumb: string | null;
+  compact?: boolean;
+  resultQuery?: string | null;
+  onExpandCommandBar?: () => void;
   onAppViewChange: (v: "search" | "discover") => void;
   onModeChange: (m: "text" | "photo") => void;
   onSoundsToggle: () => void;
@@ -60,6 +63,9 @@ export function AppCommandBar({
   photoIsUpload,
   photoSessionKey,
   searchBreadcrumb,
+  compact = false,
+  resultQuery,
+  onExpandCommandBar,
   onAppViewChange,
   onModeChange,
   onSoundsToggle,
@@ -76,11 +82,11 @@ export function AppCommandBar({
   onBreadcrumbBack,
 }: Props) {
   return (
-    <div className="sticky top-0 z-30 -mx-3 px-3 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6 pt-0 pb-3 sm:pb-4 bg-slate-100/90 backdrop-blur-md border-b border-slate-200/80">
+    <div className={`sticky top-0 z-30 -mx-3 px-3 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6 pt-0 bg-slate-100/90 backdrop-blur-md border-b border-slate-200/80 ${compact ? "pb-2" : "pb-3 sm:pb-4"}`}>
       <header className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">SG Food Discovery</h1>
-          <ColumnLegend />
+          {!compact && <ColumnLegend />}
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end sm:justify-start">
           <AppViewToggle view={appView} onChange={onAppViewChange} />
@@ -96,38 +102,58 @@ export function AppCommandBar({
           </div>
         )}
 
-        <div className="p-3 sm:p-4">
-          <CommandBody
-            appView={appView}
-            mode={mode}
-            query={query}
-            demos={demos}
-            promptsOpen={promptsOpen}
-            loading={loading}
-            photoIsUpload={photoIsUpload}
-            photoSessionKey={photoSessionKey}
-            onQueryChange={onQueryChange}
-            onSubmitText={onSubmitText}
-            onPromptsOpenChange={onPromptsOpenChange}
-            onSelectDemo={onSelectDemo}
-            onPhotoUpload={onPhotoUpload}
-            onPhotoPick={onPhotoPick}
-          />
+        {compact && appView === "search" ? (
+          <div className="p-3 flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                {mode === "photo" ? "Photo search" : "Query"}
+              </p>
+              <p className="text-sm font-medium text-slate-900 truncate">
+                {resultQuery || query || "Search"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onExpandCommandBar}
+              className="shrink-0 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 min-h-[40px] touch-manipulation"
+            >
+              Edit
+            </button>
+          </div>
+        ) : (
+          <div className="p-3 sm:p-4">
+            <CommandBody
+              appView={appView}
+              mode={mode}
+              query={query}
+              demos={demos}
+              promptsOpen={promptsOpen}
+              loading={loading}
+              photoIsUpload={photoIsUpload}
+              photoSessionKey={photoSessionKey}
+              onQueryChange={onQueryChange}
+              onSubmitText={onSubmitText}
+              onPromptsOpenChange={onPromptsOpenChange}
+              onSelectDemo={onSelectDemo}
+              onPhotoUpload={onPhotoUpload}
+              onPhotoPick={onPhotoPick}
+            />
 
-          {appView === "search" && (
-            <>
-              <DocTypeFilters value={docTypeFilter} onChange={onDocTypeChange} />
-              <DietaryFilters value={dietaryTags} onChange={onDietaryChange} />
-              <GeoFilters
-                presetId={geoPresetId}
-                radiusM={geoRadiusM}
-                locating={geoLocating}
-                onPresetChange={onGeoPresetChange}
-                onRadiusChange={onGeoRadiusChange}
-              />
-            </>
-          )}
-        </div>
+            {appView === "search" && (
+              <>
+                <DocTypeFilters value={docTypeFilter} onChange={onDocTypeChange} />
+                <DietaryFilters value={dietaryTags} onChange={onDietaryChange} />
+                <GeoFilters
+                  presetId={geoPresetId}
+                  radiusM={geoRadiusM}
+                  locating={geoLocating}
+                  onPresetChange={onGeoPresetChange}
+                  onRadiusChange={onGeoRadiusChange}
+                />
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

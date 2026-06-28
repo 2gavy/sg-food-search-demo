@@ -65,7 +65,7 @@ export function CompareColumn({
           </div>
         )}
       </header>
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-touch p-1.5 md:p-2.5 max-h-[52vh] lg:max-h-none lg:min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-touch p-1.5 md:p-2.5 min-h-[48vh] max-h-[min(62vh,640px)] lg:max-h-none lg:min-h-0">
         {loading && <CompareColumnSkeleton />}
         {!loading && side?.unsupported && (
           <div className="text-center py-4 px-2 md:px-4">
