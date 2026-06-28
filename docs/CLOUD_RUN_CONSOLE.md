@@ -160,6 +160,130 @@ When deploy finishes, Cloud Run shows a URL like:
 
 ## Troubleshooting
 
+### GitHub / Cloud Build not pulling or building
+
+Cloud Run does **not** read GitHub directly. The chain is:
+
+```
+GitHub push → Cloud Build trigger → docker build (Dockerfile) → Artifact Registry → Cloud Run revision
+```
+
+If nothing happens after push, or setup can’t see your repo, work through these in order.
+
+#### 1. GitHub app can access the repo
+
+1. Open **GitHub** → **Settings** → **Applications** (or [github.com/settings/installations](https://github.com/settings/installations)).
+2. Find **Google Cloud Build** (and/or **Google Cloud Run** if listed).
+3. Click **Configure** → **Repository access**:
+   - Either **All repositories**, or
+   - **Only select repositories** and include **`2gavy/sg-food-search-demo`**.
+4. Save.
+
+In GCP: Cloud Run → your service → **Continuous deployment** → **Manage connected repositories** → confirm `sg-food-search-demo` appears.
+
+#### 2. Connect repo in Cloud Build (2nd gen) first
+
+Sometimes Cloud Run setup won’t list repos until Cloud Build has them:
+
+1. [Cloud Build → Repositories](https://console.cloud.google.com/cloud-build/repositories)
+2. **Link repository** → GitHub → authorize → select `2gavy/sg-food-search-demo`
+3. Region: same as Cloud Run (e.g. `asia-southeast1`)
+4. Then return to Cloud Run → **Edit & deploy new revision** → reconnect source / re-save trigger
+
+#### 3. IAM roles (your Google account)
+
+Your login needs these on the **GCP project** ([IAM](https://console.cloud.google.com/iam-admin/iam)):
+
+| Role | Why |
+|------|-----|
+| **Cloud Build Editor** | Create/run builds |
+| **Cloud Run Admin** (or Developer) | Deploy revisions |
+| **Artifact Registry Administrator** (or Writer) | Store built images |
+| **Service Account User** | Act as runtime service account |
+| **Service Usage Admin** | Enable APIs (one-time) |
+
+If you’re not project Owner, ask whoever owns the project to grant these.
+
+#### 4. Cloud Build service account (common `PERMISSION_DENIED` fix)
+
+1. **Home** → **Project settings** → copy **Project number** (not project ID).
+2. [IAM](https://console.cloud.google.com/iam-admin/iam) → **Grant access**:
+   - Principal: `PROJECT_NUMBER@cloudbuild.gserviceaccount.com`
+   - Role: **Cloud Build Service Account** (`Cloud Build builds builder`)
+3. Also grant that same principal:
+   - **Cloud Run Admin**
+   - **Artifact Registry Writer**
+   - **Service Account User** (on the Cloud Run runtime SA, often `PROJECT_NUMBER-compute@developer.gserviceaccount.com`)
+
+Google often auto-grants these on first “deploy from repo”; if setup was interrupted, they may be missing.
+
+#### 5. Confirm the build actually ran
+
+1. [Cloud Build → History](https://console.cloud.google.com/cloud-build/builds)
+2. After pushing to `main`, you should see a new build within ~1 minute.
+3. If **no build appears** → GitHub trigger/connection issue (steps 1–2).
+4. If **build fails** → open the log (often `npm ci`, Dockerfile path, or API not enabled).
+
+Repo is public and `Dockerfile` is on `main`:  
+https://github.com/2gavy/sg-food-search-demo/blob/main/Dockerfile
+
+#### 6. Manual “run build now” (console)
+
+Without CLI:
+
+1. Cloud Build → **Triggers** → open the trigger Cloud Run created (or create one: event = Push to `main`, Dockerfile `/Dockerfile`).
+2. **Run** → pick branch `main`.
+3. When build succeeds, Cloud Run → service → **Revisions** should show a new revision, or click **Edit & deploy** and select the new image.
+
+#### 7. Fallback — deploy without GitHub CD
+
+If GitHub linking stays blocked:
+
+1. Cloud Run → **Create service** → **Deploy one revision from an existing container image**
+2. You still need an image in Artifact Registry — someone with `gcloud` or a one-off Cloud Build “Run” from uploaded source can produce it.
+
+For this demo, fixing GitHub + Cloud Build (steps 1–4) is usually faster than the fallback.
+
+#### 8. `gen1_repo_trigger` + `INVALID_ARGUMENT` (your error)
+
+Error text like:
+
+`request_mode:gen1_repo_trigger` … `RunBuildTrigger` … `INVALID_ARGUMENT`
+
+means Cloud Run created a **1st-generation** GitHub trigger, but your repo is (or should be) on **2nd-generation** Cloud Build connections. The trigger fires but cannot start a build.
+
+**Fix in the console (recommended):**
+
+1. **Delete the broken trigger**  
+   [Cloud Build → Triggers](https://console.cloud.google.com/cloud-build/triggers) → find `sg-food-search-demo` (or similar) → **Delete**.
+
+2. **Set up 2nd-gen GitHub connection**  
+   [Cloud Build → Repositories](https://console.cloud.google.com/cloud-build/repositories) (not the old “Triggers → Connect repository” gen1 flow):
+   - **Create host connection** → GitHub → complete GitHub app install
+   - **Link repository** → `https://github.com/2gavy/sg-food-search-demo`
+   - Region: **`asia-southeast1`** (same as Cloud Run)
+
+3. **Create a new 2nd-gen trigger manually**  
+   Cloud Build → Triggers → **Create trigger**:
+   - Event: Push to branch `^main$`
+   - Source: **2nd gen** → pick your linked `sg-food-search-demo` repo
+   - Config: **Cloud Build configuration file** → `cloudbuild.yaml` (in repo root)
+   - Substitutions (if prompted): `_SERVICE_NAME=sg-food-search-demo`, `_REGION=asia-southeast1`
+   - Service account: pick default Cloud Build SA or one with **Cloud Build Service Account** + **Cloud Run Admin** + **Artifact Registry Writer**
+
+4. **Run trigger once** → **Run** → branch `main` → confirm build in [History](https://console.cloud.google.com/cloud-build/builds).
+
+5. **Cloud Run env vars** — if this trigger only builds/pushes (not deploy), attach image on Cloud Run manually; our `cloudbuild.yaml` also runs `gcloud run deploy`. Set `ELASTICSEARCH_URL`, `ES_API_KEY`, etc. on the Cloud Run service **after** first deploy.
+
+6. **Re-link Cloud Run CD (optional)**  
+   Cloud Run → service → Continuous deployment → connect to the **new** 2nd-gen trigger, or rely on `cloudbuild.yaml` deploy step.
+
+**Also check:** default Cloud Build service account `PROJECT_NUMBER@cloudbuild.gserviceaccount.com` is **enabled** (not disabled by org policy) and has roles in §4 above.
+
+---
+
+### Runtime / app issues
+
 | Symptom | Likely cause | Fix |
 |---------|----------------|-----|
 | Blank page / 404 on refresh | Rare with `html=True` SPA mount | Redeploy; check build logs include `web/dist` |
@@ -169,6 +293,7 @@ When deploy finishes, Cloud Run shows a URL like:
 | Concierge unavailable | Missing `LLM_CONNECTOR_ID` or agent | Set env var; run `setup_agent_builder.py` once on Kibana |
 | Slow first request | Cold start (min instances = 0) | Set **Minimum instances** to `1` in Cloud Run (costs more) |
 | Build fails | Missing `web/package-lock.json` | Ensure lockfile is committed |
+| `PERMISSION_DENIED` on trigger | Cloud Build SA missing roles | See §4 above |
 
 **Build logs:** [Cloud Build history](https://console.cloud.google.com/cloud-build/builds)  
 **Runtime logs:** Cloud Run → service → **Logs**
