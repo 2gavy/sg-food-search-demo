@@ -34,6 +34,7 @@ def main() -> None:
             try:
                 body["embedding"] = embed_text(text, task="retrieval.passage")
                 body["embedding_oss"] = embed_text_oss(text, query=False)
+                body["embedding_clustering"] = embed_text(text, task="clustering")
             except Exception as exc:
                 print(f"Warning: embedding failed for {doc['doc_id']}: {exc}")
             yield {

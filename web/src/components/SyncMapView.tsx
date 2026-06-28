@@ -533,7 +533,7 @@ export function SyncMapView({
   const hits = useMemo(() => collectMapHits(result), [result]);
   const hitIds = useMemo(() => new Set(hits.map((h) => h.doc_id)), [hits]);
 
-  const [showGraph, setShowGraph] = useState(true);
+  const [showGraph, setShowGraph] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [popupDocId, setPopupDocId] = useState<string | null>(null);
   const [graph, setGraph] = useState<VenueGraphResponse | null>(null);

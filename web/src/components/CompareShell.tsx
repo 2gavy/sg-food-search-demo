@@ -1,18 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CompareColumn } from "./CompareColumn";
-import { DiffBanner } from "./DiffBanner";
-import { EvaluationSummary } from "./EvaluationSummary";
-import { PhotoMatchSummary } from "./PhotoMatchSummary";
-import { DishGallery } from "./DishGallery";
+import { InsightsBar } from "./InsightsBar";
 import { FoodCard } from "./FoodCard";
-import { PhotoUpload } from "./PhotoUpload";
-import { PhotoSearchNotice } from "./PhotoSearchNotice";
-import { TextSearchBar } from "./TextSearchBar";
 import { WelcomeHero } from "./WelcomeHero";
-import { SearchModeToggle } from "./SearchModeToggle";
 import { SyncMapView } from "./SyncMapView";
 import { AgentChatPanel } from "./AgentChatPanel";
+import { DiscoverPanel } from "./DiscoverPanel";
+import { AppCommandBar, MapCollapseToggle } from "./AppCommandBar";
+import { VenueFlyout } from "./VenueFlyout";
+import { SearchInsightsSkeleton } from "./Skeleton";
 import { useCompareSearch } from "../hooks/useCompareSearch";
+import { useDiscoverClusters } from "../hooks/useDiscoverClusters";
 import {
   playClick,
   playFilter,
@@ -22,24 +20,45 @@ import {
   playSelect,
   primeSounds,
 } from "../lib/funSounds";
+import type { ColumnVariant } from "./CompareColumn";
 import type { DemoQuery, Hit } from "../types/venue";
 
+function collectMapPinCount(result: { lexical: { hits: Hit[] }; hybrid_oss: { hits: Hit[] }; hybrid_jina: { hits: Hit[] } } | null): number {
+  if (!result) return 0;
+  const ids = new Set<string>();
+  for (const hit of [...result.lexical.hits, ...result.hybrid_oss.hits, ...result.hybrid_jina.hits]) {
+    if (hit.location) ids.add(hit.doc_id);
+  }
+  return ids.size;
+}
+
 export function CompareShell() {
+  const [appView, setAppView] = useState<"search" | "discover">("search");
   const [mode, setMode] = useState<"text" | "photo">("text");
   const [query, setQuery] = useState("");
   const [demos, setDemos] = useState<DemoQuery[]>([]);
   const [selectedHit, setSelectedHit] = useState<Hit | null>(null);
+  const [detailHit, setDetailHit] = useState<{ hit: Hit; variant: ColumnVariant } | null>(null);
   const [docTypeFilter, setDocTypeFilter] = useState<string | null>(null);
   const [soundsOn, setSoundsOn] = useState(true);
   const [promptsOpen, setPromptsOpen] = useState(false);
   const [mobileHintDismissed, setMobileHintDismissed] = useState(false);
   const [isNarrow, setIsNarrow] = useState(false);
+  const [mapCollapsed, setMapCollapsed] = useState(false);
+  const [searchBreadcrumb, setSearchBreadcrumb] = useState<string | null>(null);
   const [photoSessionKey, setPhotoSessionKey] = useState(0);
   const { loading, result, error, previewImage, photoIsUpload, searchText, searchPhoto, runDemo, resetSearch } = useCompareSearch();
+  const discover = useDiscoverClusters(true);
+
+  const mapPinCount = useMemo(() => collectMapPinCount(result), [result]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1023px)");
-    const onChange = () => setIsNarrow(mq.matches);
+    const onChange = () => {
+      const narrow = mq.matches;
+      setIsNarrow(narrow);
+      setMapCollapsed(narrow);
+    };
     onChange();
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
@@ -87,15 +106,22 @@ export function CompareShell() {
     if (scrollCard) scrollToCard(hit.doc_id);
   };
 
+  const openDetail = (hit: Hit, variant: ColumnVariant) => {
+    sfx(playClick);
+    setDetailHit({ hit, variant });
+  };
+
   const runDemoQuery = (demo: DemoQuery) => {
     sfx(playClick);
     setPromptsOpen(false);
+    setSearchBreadcrumb(null);
     const targetMode = demo.mode === "photo" ? "photo" : "text";
     if (targetMode !== mode) {
       sfx(playModeSwitch);
       resetSearch();
       setQuery("");
       setSelectedHit(null);
+      setDetailHit(null);
       setPhotoSessionKey((k) => k + 1);
       setMode(targetMode);
     }
@@ -107,114 +133,101 @@ export function CompareShell() {
   const ossOnly = new Set(result?.diff.hybrid_only_oss ?? []);
   const allThree = new Set(result?.diff.all_three ?? []);
 
-  const showWelcome = !result && !loading && !error;
-  const showResults = !showWelcome && (result || loading);
+  const runThemeSearch = (themeQuery: string, discoverLabel?: string) => {
+    const q = themeQuery.trim();
+    if (!q) return;
+    setAppView("search");
+    setMode("text");
+    setQuery(q);
+    setSearchBreadcrumb(discoverLabel ?? null);
+    setDetailHit(null);
+    sfx(playSearch);
+    searchText(q);
+  };
+
+  const showWelcome = appView === "search" && !result && !loading && !error;
+  const showResults = appView === "search" && !showWelcome && (result || loading);
+
+  const renderFoodCard = (
+    hit: Hit,
+    variant: ColumnVariant,
+    opts: { isNew?: boolean; isShared?: boolean; onSelect: (h: Hit) => void },
+  ) => (
+    <FoodCard
+      key={hit.doc_id}
+      hit={hit}
+      variant={variant}
+      isNew={opts.isNew}
+      isShared={opts.isShared}
+      selected={selectedHit?.doc_id === hit.doc_id}
+      onSelect={opts.onSelect}
+      onOpenDetail={(h) => openDetail(h, variant)}
+    />
+  );
 
   return (
     <>
     <div className="min-h-screen bg-slate-100/80">
       <div className="max-w-[1680px] mx-auto px-3 py-3 sm:px-5 sm:py-4 lg:px-6">
-        <div className="sticky top-0 z-30 -mx-3 px-3 sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6 pt-0 pb-3 sm:pb-4 bg-slate-100/90 backdrop-blur-md border-b border-slate-200/80">
-          <header className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">SG Food Discovery</h1>
-              <p className="text-xs sm:text-sm text-slate-500 leading-snug">
-                Keyword · E5 hybrid · Jina hybrid — one index, side by side
-              </p>
-            </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setSoundsOn((v) => !v)}
-                className="shrink-0 text-lg px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 min-h-[44px] min-w-[44px] touch-manipulation shadow-sm"
-                aria-label={soundsOn ? "Mute sounds" : "Enable sounds"}
-                title={soundsOn ? "Sound on" : "Sound off"}
-              >
-                {soundsOn ? "🔊" : "🔇"}
-              </button>
-              <SearchModeToggle
-                mode={mode}
-                onChange={(m) => {
-                  if (m === mode) return;
-                  sfx(playModeSwitch);
-                  setPromptsOpen(false);
-                  resetSearch();
-                  setQuery("");
-                  setSelectedHit(null);
-                  setPhotoSessionKey((k) => k + 1);
-                  setMode(m);
-                }}
-              />
-            </div>
-          </header>
-
-          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">
-            {mode === "text" ? (
-              <div className="flex flex-col sm:flex-row gap-2 w-full">
-                <TextSearchBar
-                  query={query}
-                  onQueryChange={setQuery}
-                  onSubmit={submitText}
-                  demos={demos}
-                  promptsOpen={promptsOpen}
-                  onPromptsOpenChange={setPromptsOpen}
-                  onSelectDemo={runDemoQuery}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPromptsOpen(false);
-                    submitText();
-                  }}
-                  className="w-full sm:w-auto shrink-0 bg-brand text-white px-5 py-3 sm:py-2.5 rounded-lg text-sm font-medium hover:bg-brand-dark min-h-[44px] touch-manipulation shadow-sm"
-                >
-                  Search
-                </button>
-              </div>
-            ) : (
-              <div className="w-full min-w-0 space-y-3">
-                {loading ? (
-                  <PhotoSearchNotice variant="loading" isUpload={photoIsUpload} />
-                ) : (
-                  <PhotoSearchNotice />
-                )}
-                <PhotoUpload
-                  key={photoSessionKey}
-                  onUpload={(uri) => {
-                    sfx(playSearch);
-                    searchPhoto(undefined, uri);
-                  }}
-                />
-                <DishGallery
-                  onPick={(id) => {
-                    sfx(playClick);
-                    searchPhoto(id);
-                  }}
-                />
-              </div>
-            )}
-
-            <div className="flex gap-1.5 overflow-x-auto scroll-touch pt-3 mt-3 border-t border-slate-100">
-              {["hawker_stall", "restaurant", null].map((f) => (
-                <button
-                  key={String(f)}
-                  type="button"
-                  onClick={() => {
-                    sfx(playFilter);
-                    setDocTypeFilter(f);
-                  }}
-                  className={`shrink-0 text-xs px-3 py-1.5 rounded-full border min-h-[32px] touch-manipulation transition-colors ${
-                    docTypeFilter === f
-                      ? "bg-brand text-white border-brand shadow-sm"
-                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-white"
-                  }`}
-                >
-                  {f ? f.replace("_", " ") : "All venues"}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <AppCommandBar
+          appView={appView}
+          mode={mode}
+          query={query}
+          demos={demos}
+          promptsOpen={promptsOpen}
+          docTypeFilter={docTypeFilter}
+          soundsOn={soundsOn}
+          loading={loading}
+          photoIsUpload={photoIsUpload}
+          photoSessionKey={photoSessionKey}
+          searchBreadcrumb={searchBreadcrumb}
+          onAppViewChange={(v) => {
+            if (v === appView) return;
+            sfx(playModeSwitch);
+            if (v === "discover") setSearchBreadcrumb(null);
+            setAppView(v);
+          }}
+          onModeChange={(m) => {
+            if (m === mode) return;
+            sfx(playModeSwitch);
+            setPromptsOpen(false);
+            resetSearch();
+            setQuery("");
+            setSelectedHit(null);
+            setDetailHit(null);
+            setSearchBreadcrumb(null);
+            setPhotoSessionKey((k) => k + 1);
+            setMode(m);
+            setAppView("search");
+          }}
+          onSoundsToggle={() => setSoundsOn((v) => !v)}
+          onQueryChange={setQuery}
+          onSubmitText={() => {
+            setPromptsOpen(false);
+            submitText();
+          }}
+          onPromptsOpenChange={setPromptsOpen}
+          onSelectDemo={runDemoQuery}
+          onDocTypeChange={(f) => {
+            sfx(playFilter);
+            setDocTypeFilter(f);
+          }}
+          onPhotoUpload={(uri) => {
+            sfx(playSearch);
+            setSearchBreadcrumb(null);
+            searchPhoto(undefined, uri);
+          }}
+          onPhotoPick={(id) => {
+            sfx(playClick);
+            setSearchBreadcrumb(null);
+            searchPhoto(id);
+          }}
+          onBreadcrumbBack={() => {
+            sfx(playClick);
+            setSearchBreadcrumb(null);
+            setAppView("discover");
+          }}
+        />
 
         <div className="flex flex-col gap-3 sm:gap-4 pt-3 sm:pt-4">
           {error && (
@@ -223,15 +236,48 @@ export function CompareShell() {
             </p>
           )}
 
-          {loading && !result && mode === "text" && (
-            <div className="rounded-xl border border-slate-200 bg-white py-16 text-center shadow-sm">
-              <p className="text-sm font-medium text-slate-700">Searching…</p>
-              <p className="text-xs text-slate-400 mt-1">Keyword · E5 hybrid · Jina hybrid</p>
-            </div>
+          {appView === "search" && showResults && loading && !result && (
+            <SearchInsightsSkeleton />
+          )}
+
+          {appView === "search" && result && (
+            <InsightsBar
+              result={result}
+              previewImage={previewImage}
+              onSelectHit={(id, column) => {
+                const hits = column === "jina" ? result.hybrid_jina.hits : result.hybrid_oss.hits;
+                const hit = hits?.find((h) => h.doc_id === id);
+                if (hit) selectHit(hit, true);
+              }}
+            />
+          )}
+
+          {appView === "discover" && (
+            <DiscoverPanel
+              loading={discover.loading}
+              error={discover.error}
+              summary={discover.data?.summary}
+              clusters={discover.data?.clusters ?? []}
+              onRefresh={discover.reload}
+              onSearchTheme={(q, label) => runThemeSearch(q, label)}
+              onSelectVenue={(hit) => {
+                sfx(playSelect);
+                setSelectedHit(hit);
+                runThemeSearch(hit.signature_dish ?? hit.title, hit.title);
+              }}
+            />
           )}
 
           {showWelcome && mode === "text" && (
-            <WelcomeHero demos={demos} onFillQuery={setQuery} onSelect={runDemoQuery} />
+            <WelcomeHero
+              demos={demos}
+              onFillQuery={setQuery}
+              onSelect={runDemoQuery}
+              onOpenDiscover={() => {
+                sfx(playClick);
+                setAppView("discover");
+              }}
+            />
           )}
 
           {showWelcome && mode === "photo" && (
@@ -244,15 +290,7 @@ export function CompareShell() {
             </section>
           )}
 
-          {!showWelcome && !loading && result && (
-            result.mode === "photo" ? (
-              <PhotoMatchSummary result={result} previewImage={previewImage} />
-            ) : (
-              <EvaluationSummary result={result} />
-            )
-          )}
-
-          {!showWelcome && !mobileHintDismissed && isNarrow && (
+          {appView === "search" && !showWelcome && !mobileHintDismissed && isNarrow && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               <p className="flex-1 leading-snug">
                 Swipe the columns horizontally — desktop shows all three beside the map.
@@ -270,31 +308,34 @@ export function CompareShell() {
 
           {showResults && (
             <div className="flex flex-col gap-3">
-              {result && (
-                <DiffBanner
-                  result={result}
-                  onSelectHit={(id, column) => {
-                    const hits = column === "jina" ? result.hybrid_jina.hits : result.hybrid_oss.hits;
-                    const hit = hits?.find((h) => h.doc_id === id);
-                    if (hit) selectHit(hit, true);
-                  }}
+              <div className="flex justify-end">
+                <MapCollapseToggle
+                  collapsed={mapCollapsed}
+                  onToggle={() => setMapCollapsed((v) => !v)}
+                  pinCount={mapPinCount}
                 />
-              )}
+              </div>
 
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-5 lg:h-[min(calc(100vh-10rem),720px)]">
-                <aside className="order-1 lg:order-2 w-full lg:w-[min(480px,40%)] shrink-0 flex flex-col min-h-0 h-[380px] sm:h-[420px] lg:h-auto rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                  <SyncMapView
-                    result={result}
-                    selectedHit={selectedHit}
-                    onSelectHit={(hit) => {
-                      const { hit: resolved, inResults } = hitFromResults(hit);
-                      selectHit(resolved, false, inResults);
-                    }}
-                    className="h-full min-h-0"
-                  />
-                </aside>
+              <div
+                className={`flex flex-col gap-3 lg:items-stretch lg:gap-5 lg:h-[min(calc(100vh-10rem),720px)] ${
+                  mapCollapsed ? "" : "lg:flex-row"
+                }`}
+              >
+                {!mapCollapsed && (
+                  <aside className="order-1 lg:order-2 w-full lg:w-[min(480px,40%)] shrink-0 flex flex-col min-h-0 h-[380px] sm:h-[420px] lg:h-auto rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    <SyncMapView
+                      result={result}
+                      selectedHit={selectedHit}
+                      onSelectHit={(hit) => {
+                        const { hit: resolved, inResults } = hitFromResults(hit);
+                        selectHit(resolved, false, inResults);
+                      }}
+                      className="h-full min-h-0"
+                    />
+                  </aside>
+                )}
 
-                <div className="order-2 lg:order-1 flex-1 min-w-0 min-h-0 flex flex-col">
+                <div className={`order-2 lg:order-1 flex-1 min-w-0 min-h-0 flex flex-col ${mapCollapsed ? "w-full" : ""}`}>
                   <div className="flex-1 min-h-0 overflow-x-auto scroll-touch pb-1 -mx-1 px-1 lg:mx-0 lg:px-0 lg:overflow-visible">
                     <div className="grid grid-cols-3 gap-2 md:gap-3 items-stretch min-w-[720px] lg:min-w-0 h-full lg:min-h-0">
                     <CompareColumn
@@ -313,16 +354,12 @@ export function CompareShell() {
                         ) : undefined
                       }
                     >
-                      {result?.lexical.hits.map((hit) => (
-                        <FoodCard
-                          key={hit.doc_id}
-                          hit={hit}
-                          variant="lexical"
-                          isShared={allThree.has(hit.doc_id)}
-                          selected={selectedHit?.doc_id === hit.doc_id}
-                          onSelect={(hit) => selectHit(hit, false)}
-                        />
-                      ))}
+                      {result?.lexical.hits.map((hit) =>
+                        renderFoodCard(hit, "lexical", {
+                          isShared: allThree.has(hit.doc_id),
+                          onSelect: (h) => selectHit(h, false),
+                        }),
+                      )}
                     </CompareColumn>
 
                     <CompareColumn
@@ -348,17 +385,13 @@ export function CompareShell() {
                           className="hidden md:block w-full max-w-[120px] rounded-lg mb-3 border border-sky-300"
                         />
                       )}
-                      {result?.hybrid_oss?.hits.map((hit) => (
-                        <FoodCard
-                          key={hit.doc_id}
-                          hit={hit}
-                          variant="hybrid_oss"
-                          isNew={ossOnly.has(hit.doc_id)}
-                          isShared={allThree.has(hit.doc_id)}
-                          selected={selectedHit?.doc_id === hit.doc_id}
-                          onSelect={(hit) => selectHit(hit, ossOnly.has(hit.doc_id))}
-                        />
-                      ))}
+                      {result?.hybrid_oss?.hits.map((hit) =>
+                        renderFoodCard(hit, "hybrid_oss", {
+                          isNew: ossOnly.has(hit.doc_id),
+                          isShared: allThree.has(hit.doc_id),
+                          onSelect: (h) => selectHit(h, ossOnly.has(h.doc_id)),
+                        }),
+                      )}
                     </CompareColumn>
 
                     <CompareColumn
@@ -384,17 +417,13 @@ export function CompareShell() {
                           className="hidden md:block w-full max-w-[120px] rounded-lg mb-3 border border-brand/30"
                         />
                       )}
-                      {result?.hybrid_jina.hits.map((hit) => (
-                        <FoodCard
-                          key={hit.doc_id}
-                          hit={hit}
-                          variant="hybrid_jina"
-                          isNew={jinaOnly.has(hit.doc_id)}
-                          isShared={allThree.has(hit.doc_id)}
-                          selected={selectedHit?.doc_id === hit.doc_id}
-                          onSelect={(hit) => selectHit(hit, jinaOnly.has(hit.doc_id))}
-                        />
-                      ))}
+                      {result?.hybrid_jina.hits.map((hit) =>
+                        renderFoodCard(hit, "hybrid_jina", {
+                          isNew: jinaOnly.has(hit.doc_id),
+                          isShared: allThree.has(hit.doc_id),
+                          onSelect: (h) => selectHit(h, jinaOnly.has(h.doc_id)),
+                        }),
+                      )}
                     </CompareColumn>
                     </div>
                   </div>
@@ -405,6 +434,12 @@ export function CompareShell() {
         </div>
       </div>
     </div>
+
+    <VenueFlyout
+      hit={detailHit?.hit ?? null}
+      variant={detailHit?.variant}
+      onClose={() => setDetailHit(null)}
+    />
     <AgentChatPanel result={result} selectedHit={selectedHit} query={query} mode={mode} />
     </>
   );

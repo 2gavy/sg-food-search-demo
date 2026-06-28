@@ -77,6 +77,13 @@ def corpus_mapping() -> dict:
                     "similarity": "dot_product",
                     "index_options": {"type": "bbq_disk"},
                 },
+                "embedding_clustering": {
+                    "type": "dense_vector",
+                    "dims": EMBEDDING_DIMS,
+                    "index": True,
+                    "similarity": "dot_product",
+                    "index_options": {"type": "bbq_disk"},
+                },
             }
         },
     }

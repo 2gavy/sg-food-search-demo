@@ -33,5 +33,16 @@ echo "Web  → http://127.0.0.1:5173"
 (cd web && npm run dev -- --host 127.0.0.1 --port 5173) &
 WEB_PID=$!
 
+# Warm Discover cache so the tab loads instantly during demos
+(
+  for _ in $(seq 1 30); do
+    if curl -sf "http://127.0.0.1:8000/discover/clusters" >/dev/null 2>&1; then
+      echo "Discover cache warmed — tab will load instantly"
+      break
+    fi
+    sleep 0.5
+  done
+) &
+
 echo "Press Ctrl+C to stop both."
 wait

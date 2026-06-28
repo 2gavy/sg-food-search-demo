@@ -85,3 +85,29 @@ export interface DemoQuery {
   /** Short language tag shown on multilingual prompts */
   lang_label?: string;
 }
+
+export interface DiscoverClusterTerm {
+  term: string;
+  score: number;
+}
+
+export interface DiscoverCluster {
+  cluster_id: string;
+  label: string;
+  subtitle?: string | null;
+  terms: DiscoverClusterTerm[];
+  size: number;
+  sample_hits: Hit[];
+  density?: number | null;
+  search_query?: string;
+}
+
+export interface DiscoverClustersResponse {
+  clusters: DiscoverCluster[];
+  noise_count: number;
+  total_venues: number;
+  took_ms: number;
+  engine: "density_probe_knn" | "local_heuristic";
+  vector_field: string;
+  summary: string;
+}

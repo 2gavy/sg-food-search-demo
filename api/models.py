@@ -155,3 +155,29 @@ class AgentConverseResponse(BaseModel):
     steps: list[dict] = Field(default_factory=list)
     model_usage: dict | None = None
     context_attached: bool = False
+
+
+class DiscoverClusterTerm(BaseModel):
+    term: str
+    score: float = 0.0
+
+
+class DiscoverCluster(BaseModel):
+    cluster_id: str
+    label: str
+    subtitle: str | None = None
+    terms: list[DiscoverClusterTerm] = Field(default_factory=list)
+    size: int = 0
+    sample_hits: list[Hit] = Field(default_factory=list)
+    density: float | None = None
+    search_query: str = ""
+
+
+class DiscoverClustersResponse(BaseModel):
+    clusters: list[DiscoverCluster] = Field(default_factory=list)
+    noise_count: int = 0
+    total_venues: int = 0
+    took_ms: int = 0
+    engine: Literal["density_probe_knn", "local_heuristic"] = "density_probe_knn"
+    vector_field: str = "embedding_clustering"
+    summary: str = ""

@@ -1,9 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { DemoQuery } from "../types/venue";
 import { langBadgeClass } from "../lib/langLabel";
 
 interface Props {
   open: boolean;
+  anchorRef: React.RefObject<HTMLElement | null>;
   demos: DemoQuery[];
   onSelect: (demo: DemoQuery) => void;
   onFillQuery?: (text: string) => void;
@@ -58,11 +60,36 @@ function SuggestionRow({
   );
 }
 
-export function PromptDropdown({ open, demos, onSelect, onFillQuery, onClose }: Props) {
+export function PromptDropdown({ open, anchorRef, demos, onSelect, onFillQuery, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+
   const multilingual = demos.filter((d) => d.mode !== "photo" && d.group === "multilingual");
   const english = demos.filter((d) => d.mode !== "photo" && d.group !== "multilingual");
   const photo = demos.filter((d) => d.mode === "photo");
+
+  useEffect(() => {
+    if (!open || !anchorRef.current) return;
+
+    const updatePosition = () => {
+      const el = anchorRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setPos({
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: rect.width,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, anchorRef]);
 
   useEffect(() => {
     if (!open) return;
@@ -73,16 +100,33 @@ export function PromptDropdown({ open, demos, onSelect, onFillQuery, onClose }: 
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (anchorRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      onClose();
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+    };
+  }, [open, onClose, anchorRef]);
+
   if (!open || demos.length === 0) return null;
 
-  return (
+  return createPortal(
     <div
       ref={panelRef}
       role="listbox"
       aria-label="Suggested searches"
-      className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 ring-1 ring-black/5"
+      style={{ top: pos.top, left: pos.left, width: pos.width }}
+      className="fixed z-[200] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-300/50 ring-1 ring-black/5"
     >
-      <div className="max-h-[min(480px,65vh)] overflow-y-auto overscroll-contain scroll-touch p-1.5">
+      <div className="max-h-[min(480px,65vh)] overflow-y-auto overscroll-contain scroll-touch p-1.5 bg-white">
         <p className="px-3 pt-1.5 pb-2 text-[10px] text-slate-400 leading-snug">
           Click any row to run · {demos.length} demo{demos.length === 1 ? "" : "s"}
         </p>
@@ -145,6 +189,7 @@ export function PromptDropdown({ open, demos, onSelect, onFillQuery, onClose }: 
           </section>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

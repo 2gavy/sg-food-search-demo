@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { SearchSide } from "../types/venue";
 import { RankingExplainer } from "./RankingExplainer";
+import { CompareColumnSkeleton } from "./Skeleton";
 
 export type ColumnVariant = "lexical" | "hybrid_oss" | "hybrid_jina";
 
@@ -65,7 +66,7 @@ export function CompareColumn({
         )}
       </header>
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain scroll-touch p-1.5 md:p-2.5 max-h-[52vh] lg:max-h-none lg:min-h-0">
-        {loading && <p className="text-xs md:text-sm text-slate-400 text-center py-6">Loading…</p>}
+        {loading && <CompareColumnSkeleton />}
         {!loading && side?.unsupported && (
           <div className="text-center py-4 px-2 md:px-4">
             {emptyContent}

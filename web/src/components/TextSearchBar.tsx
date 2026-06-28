@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { PromptDropdown } from "./PromptDropdown";
 import { detectQueryLang, langBadgeClass } from "../lib/langLabel";
 import type { DemoQuery } from "../types/venue";
@@ -25,21 +25,6 @@ export function TextSearchBar({
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const textDemos = demos.filter((d) => d.mode !== "photo");
-
-  useEffect(() => {
-    if (!promptsOpen) return;
-    const onPointerDown = (e: MouseEvent | TouchEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) {
-        onPromptsOpenChange(false);
-      }
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("touchstart", onPointerDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("touchstart", onPointerDown);
-    };
-  }, [promptsOpen, onPromptsOpenChange]);
 
   const queryLang = detectQueryLang(query);
 
@@ -104,6 +89,7 @@ export function TextSearchBar({
 
       <PromptDropdown
         open={promptsOpen}
+        anchorRef={rootRef}
         demos={textDemos}
         onSelect={onSelectDemo}
         onFillQuery={onQueryChange}

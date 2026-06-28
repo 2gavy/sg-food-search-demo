@@ -65,6 +65,15 @@ def test_compare_image_missing_input(client):
     assert r.status_code == 422 or r.status_code == 500
 
 
+def test_discover_clusters_local(client):
+    r = client.get("/discover/clusters")
+    assert r.status_code == 200
+    body = r.json()
+    assert "clusters" in body
+    assert body["engine"] in ("density_probe_knn", "local_heuristic")
+    assert isinstance(body["clusters"], list)
+
+
 def test_save_case(client):
     r = client.post(
         "/cases",

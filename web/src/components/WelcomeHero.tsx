@@ -6,9 +6,10 @@ interface Props {
   demos: DemoQuery[];
   onSelect: (demo: DemoQuery) => void;
   onFillQuery?: (text: string) => void;
+  onOpenDiscover?: () => void;
 }
 
-export function WelcomeHero({ demos, onSelect, onFillQuery }: Props) {
+export function WelcomeHero({ demos, onSelect, onFillQuery, onOpenDiscover }: Props) {
   const multilingual = pickDemos(demos, MULTILINGUAL_HERO_IDS);
 
   if (multilingual.length === 0) return null;
@@ -24,8 +25,19 @@ export function WelcomeHero({ demos, onSelect, onFillQuery }: Props) {
         </h2>
         <p className="mt-2 text-sm text-slate-600 leading-relaxed max-w-2xl mx-auto sm:mx-0">
           Side-by-side evaluation on one index — keyword baseline vs open-source hybrid vs multimodal hybrid.
-          Start with a language card below.
+          Or browse <strong className="font-medium text-slate-800">food scenes</strong> the corpus clusters into naturally.
         </p>
+        {onOpenDiscover && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={onOpenDiscover}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 shadow-sm touch-manipulation"
+            >
+              Browse food scenes
+            </button>
+          </div>
+        )}
       </div>
 
       {multilingual.length > 0 && (

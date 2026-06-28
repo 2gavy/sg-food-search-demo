@@ -11,10 +11,11 @@ interface Props {
   isShared?: boolean;
   selected?: boolean;
   onSelect?: (hit: Hit) => void;
+  onOpenDetail?: (hit: Hit) => void;
 }
 
-function formatMatchReason(hit: Hit, short = false): string | null {
-  return formatBuyerMatchReason(hit, short);
+function formatMatchReason(hit: Hit): string | null {
+  return formatBuyerMatchReason(hit, true);
 }
 
 function formatDistance(metres: number): string {
@@ -47,7 +48,7 @@ function Badge({ variant, isNew, isShared }: { variant: ColumnVariant; isNew?: b
   if (isNew) {
     return (
       <span
-        className={`shrink-0 text-[9px] md:text-[10px] font-bold uppercase px-1 py-0.5 rounded text-white ${
+        className={`shrink-0 text-[9px] font-bold uppercase px-1 py-0.5 rounded text-white ${
           variant === "hybrid_oss" ? "bg-sky-600" : "bg-brand"
         }`}
       >
@@ -56,22 +57,21 @@ function Badge({ variant, isNew, isShared }: { variant: ColumnVariant; isNew?: b
     );
   }
   if (isShared) {
-    return <span className="shrink-0 text-[9px] md:text-[10px] text-amber-600">★</span>;
+    return <span className="shrink-0 text-[9px] text-amber-600">★</span>;
   }
   return null;
 }
 
-function VenueThumbnail({ hit, size = "md" }: { hit: Hit; size?: "sm" | "md" }) {
+function VenueThumbnail({ hit }: { hit: Hit }) {
   const [failed, setFailed] = useState(false);
   const imageUrl = resolveVenueImageUrl(hit);
-  const dim = size === "sm" ? "w-10 h-10 rounded" : "w-16 h-16 rounded-md";
 
   if (imageUrl && !failed) {
     return (
       <img
         src={imageUrl}
         alt=""
-        className={`${dim} object-cover bg-slate-100 shrink-0`}
+        className="w-10 h-10 rounded-md object-cover bg-slate-100 shrink-0"
         onError={() => setFailed(true)}
       />
     );
@@ -79,7 +79,7 @@ function VenueThumbnail({ hit, size = "md" }: { hit: Hit; size?: "sm" | "md" }) 
 
   return (
     <div
-      className={`${dim} shrink-0 flex items-center justify-center bg-gradient-to-br font-bold ${size === "sm" ? "text-[10px]" : "text-sm"} ${venueAvatarColor(hit.doc_type)}`}
+      className={`w-10 h-10 rounded-md shrink-0 flex items-center justify-center bg-gradient-to-br text-[10px] font-bold ${venueAvatarColor(hit.doc_type)}`}
       aria-hidden
     >
       {venueInitials(hit.title)}
@@ -87,7 +87,7 @@ function VenueThumbnail({ hit, size = "md" }: { hit: Hit; size?: "sm" | "md" }) 
   );
 }
 
-export function FoodCard({ hit, variant, isNew, isShared, selected, onSelect }: Props) {
+export function FoodCard({ hit, variant, isNew, isShared, selected, onSelect, onOpenDetail }: Props) {
   const accent =
     variant === "hybrid_jina"
       ? isNew
@@ -103,56 +103,51 @@ export function FoodCard({ hit, variant, isNew, isShared, selected, onSelect }: 
             : "border-l-sky-300"
         : "border-l-slate-300";
 
-  const border = `border-l-[3px] md:border-l-4 ${accent} ${variant === "lexical" ? "opacity-90" : ""}`;
-  const matchMobile = formatMatchReason(hit, true);
-  const matchDesktop = formatMatchReason(hit, false);
+  const border = `border-l-[3px] ${accent} ${variant === "lexical" ? "opacity-90" : ""}`;
+  const matchLine = formatMatchReason(hit);
+  const locationLine = [hit.neighbourhood, hit.hawker_centre].filter(Boolean).join(" · ");
   const distanceLine = hit.distance_metres != null ? formatDistance(hit.distance_metres) : null;
+  const metaLine = [locationLine, distanceLine].filter(Boolean).join(" · ");
 
   return (
-    <button
-      type="button"
+    <div
       data-doc-id={hit.doc_id}
-      onClick={() => onSelect?.(hit)}
-      className={`w-full text-left rounded-md md:rounded-lg bg-white shadow-sm border border-slate-200 p-2 md:p-3 mb-1.5 md:mb-2 hover:shadow-md active:bg-slate-50 transition touch-manipulation ${border} ${selected ? "ring-2 ring-brand" : ""}`}
+      className={`group flex items-stretch gap-0 rounded-md bg-white shadow-sm border border-slate-200 mb-1.5 hover:shadow-md transition ${border} ${selected ? "ring-2 ring-brand" : ""}`}
     >
-      {/* Mobile: compact with thumbnail */}
-      <div className="md:hidden flex gap-2">
-        <VenueThumbnail hit={hit} size="sm" />
-        <div className="flex-1 min-w-0 space-y-1">
+      <button
+        type="button"
+        onClick={() => onSelect?.(hit)}
+        className="flex-1 min-w-0 text-left flex gap-2 p-2 active:bg-slate-50 touch-manipulation rounded-l-md"
+      >
+        <VenueThumbnail hit={hit} />
+        <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-1">
-            <h3 className="font-semibold text-[13px] leading-snug text-slate-900 line-clamp-3 break-words">{hit.title}</h3>
+            <h3 className="font-semibold text-[13px] leading-snug text-slate-900 line-clamp-2">{hit.title}</h3>
             <Badge variant={variant} isNew={isNew} isShared={isShared} />
           </div>
           {hit.signature_dish && (
-            <p className="text-[12px] text-slate-600 leading-snug line-clamp-2">{hit.signature_dish}</p>
+            <p className="text-[11px] text-slate-600 leading-snug line-clamp-1 mt-0.5">{hit.signature_dish}</p>
           )}
-          <p className="text-[11px] text-slate-500 leading-snug">
-            ★ {hit.rating ?? "—"} · {hit.price_range ?? "—"}
-            {distanceLine ? ` · ${distanceLine}` : ""}
-          </p>
-          {matchMobile && <p className="text-[10px] text-slate-400 leading-snug line-clamp-2">{matchMobile}</p>}
+          {metaLine && <p className="text-[10px] text-slate-500 leading-snug truncate mt-0.5">{metaLine}</p>}
+          {matchLine && <p className="text-[10px] text-slate-400 leading-snug line-clamp-1 mt-0.5">{matchLine}</p>}
         </div>
-      </div>
-
-      {/* Desktop: full card with thumbnail */}
-      <div className="hidden md:flex gap-3">
-        <VenueThumbnail hit={hit} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-sm text-slate-900 truncate">{hit.title}</h3>
-            <Badge variant={variant} isNew={isNew} isShared={isShared} />
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5 capitalize">
-            {hit.doc_type?.replace(/_/g, " ") ?? "venue"} · {hit.price_range ?? "—"} · ★ {hit.rating ?? "—"}
-          </p>
-          {hit.signature_dish && <p className="text-xs text-slate-600 mt-1">{hit.signature_dish}</p>}
-          {(matchDesktop || distanceLine) && (
-            <p className="text-[11px] text-slate-400 mt-1 truncate">
-              {[matchDesktop, distanceLine].filter(Boolean).join(" · ")}
-            </p>
-          )}
-        </div>
-      </div>
-    </button>
+      </button>
+      {onOpenDetail && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenDetail(hit);
+          }}
+          className="shrink-0 px-2 border-l border-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-r-md touch-manipulation flex items-center"
+          aria-label={`Details for ${hit.title}`}
+          title="View details"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }

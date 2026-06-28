@@ -4,6 +4,17 @@ Singapore hawker & restaurant search demo — **Keywords (BM25) · E5 hybrid · 
 
 Built for **Elastic Cloud Serverless Search** (Jina EIS, DiskBBQ, hybrid RRF).
 
+<p align="center">
+  <a href="docs/images/readme-screenshot.png">
+    <img
+      src="docs/images/readme-screenshot.png"
+      alt="SG Food Discovery — compare BM25, E5, and Jina hybrid search with insights bar, venue cards, and Singapore map"
+      width="920"
+    />
+  </a>
+</p>
+<p align="center"><sub>Multilingual text search · hybrid recall vs keywords · synced map pins · Agent Builder concierge</sub></p>
+
 ## What you need
 
 - **Python 3.10+**
@@ -37,14 +48,20 @@ LLM_CONNECTOR_ID=Anthropic-Claude-Sonnet-4-6   # for Concierge (optional)
 
 `KIBANA_URL` / `KIBANA_API_KEY` default from the ES URL/key. **Never commit `.env`.**
 
-### 3. Start
+### 3. Prep for demo (Discover tab)
 
 ```bash
-chmod +x scripts/start-demo.sh
+chmod +x scripts/prep-demo.sh scripts/start-demo.sh
+./scripts/prep-demo.sh    # clustering embeddings + warm cache (once)
+```
+
+### 4. Start
+
+```bash
 ./scripts/start-demo.sh
 ```
 
-Open **http://127.0.0.1:5173**
+Open **http://127.0.0.1:5173** — click **Discover** or **Discover food topics** on the welcome screen.
 
 Or two terminals:
 
@@ -58,6 +75,34 @@ uvicorn api.main:app --host 127.0.0.1 --port 8000
 cd web && npm install && npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
+## Deploy to Google Cloud Run
+
+One container serves the **built React UI + FastAPI** on port `8080`. Elasticsearch stays on Elastic Cloud — set credentials as Cloud Run env vars (not `.env` in the image).
+
+### Console deploy (no local CLI)
+
+**→ [docs/CLOUD_RUN_CONSOLE.md](docs/CLOUD_RUN_CONSOLE.md)** — step-by-step using only the GCP Console and GitHub (connect repo, Dockerfile build, secrets, env vars).
+
+Quick checklist:
+
+1. Push latest code to GitHub (`main`)
+2. GCP project + billing + enable Cloud Run / Cloud Build / Artifact Registry
+3. Secret Manager for `ES_API_KEY` (recommended)
+4. Cloud Run → **Create service** → deploy from repository → Dockerfile at repo root
+5. Set `ELASTICSEARCH_URL`, `ES_API_KEY`, optional `LLM_CONNECTOR_ID`
+6. Open the service URL; check `/health`
+
+### CLI deploy (optional)
+
+Requires [Google Cloud SDK](https://cloud.google.com/sdk/docs/install):
+
+```bash
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+export ELASTICSEARCH_URL=...
+export ES_API_KEY=...
+./scripts/deploy-cloudrun.sh
+```
+
 ## Features
 
 | Area | Details |
@@ -66,6 +111,7 @@ cd web && npm install && npm run dev -- --host 127.0.0.1 --port 5173
 | **Photo** | Upload or pick a gallery dish — Jina multimodal column |
 | **Map** | Leaflet/OSM pins, 2-hop graph (`same_dish` / `same_hawker`) |
 | **Concierge** | Bottom-right Agent Builder chat — sends selected venue + graph hops |
+| **Discover** | Food scenes grouped from clustering embeddings — hawker centre, dish, neighbourhood |
 
 ## API (proxied by Vite in dev)
 
@@ -74,6 +120,7 @@ cd web && npm install && npm run dev -- --host 127.0.0.1 --port 5173
 | `POST /search/compare` | Text compare (3 columns) |
 | `POST /search/compare-image` | Photo compare |
 | `GET /search/graph/{doc_id}` | Graph hops for map + Concierge |
+| `GET /discover/clusters` | Unsupervised food topic discovery |
 | `GET /agent/status` | Agent Builder configured? |
 | `POST /agent/converse` | Concierge chat |
 
@@ -86,6 +133,16 @@ python3 scripts/setup_agent_builder.py
 ```
 
 Creates the `sg-food-concierge` agent if missing. Requires `LLM_CONNECTOR_ID` in `.env`.
+
+## Topic discovery (clustering embeddings)
+
+Stalls are grouped into **food scenes** (e.g. *Old Airport Road · Char Kway Teow*) using Jina `task=clustering` and kNN on Serverless. Labels come from hawker centre, dish, and neighbourhood fields in the corpus.
+
+```bash
+python3 scripts/backfill_clustering_embeddings.py   # once per index
+```
+
+Open **Discover** in the app.
 
 ## Local mode (no Elasticsearch)
 

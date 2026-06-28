@@ -1,0 +1,16 @@
+.env
+.elastic-credentials
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+.DS_Store
+
+web/node_modules
+web/dist
+
+data/local_cases.jsonl
+data/sg_food_corpus.jsonl
+workflows/generated/
