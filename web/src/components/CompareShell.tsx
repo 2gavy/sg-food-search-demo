@@ -11,6 +11,7 @@ import { VenueFlyout } from "./VenueFlyout";
 import { SearchInsightsSkeleton } from "./Skeleton";
 import { useCompareSearch } from "../hooks/useCompareSearch";
 import { useDiscoverClusters } from "../hooks/useDiscoverClusters";
+import { resolveGeoFilter } from "./GeoFilters";
 import {
   playClick,
   playFilter,
@@ -40,6 +41,11 @@ export function CompareShell() {
   const [selectedHit, setSelectedHit] = useState<Hit | null>(null);
   const [detailHit, setDetailHit] = useState<{ hit: Hit; variant: ColumnVariant } | null>(null);
   const [docTypeFilter, setDocTypeFilter] = useState<string | null>(null);
+  const [dietaryTags, setDietaryTags] = useState<string[]>([]);
+  const [geoPresetId, setGeoPresetId] = useState("off");
+  const [geoRadiusM, setGeoRadiusM] = useState(1500);
+  const [myLocation, setMyLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [geoLocating, setGeoLocating] = useState(false);
   const [soundsOn, setSoundsOn] = useState(true);
   const [promptsOpen, setPromptsOpen] = useState(false);
   const [mobileHintDismissed, setMobileHintDismissed] = useState(false);
@@ -48,7 +54,25 @@ export function CompareShell() {
   const [searchBreadcrumb, setSearchBreadcrumb] = useState<string | null>(null);
   const [photoSessionKey, setPhotoSessionKey] = useState(0);
   const { loading, result, error, previewImage, photoIsUpload, searchText, searchPhoto, runDemo, resetSearch } = useCompareSearch();
-  const discover = useDiscoverClusters(true);
+  const discover = useDiscoverClusters(appView === "discover");
+
+  const activeGeo = useMemo(
+    () => resolveGeoFilter(geoPresetId, geoRadiusM, myLocation),
+    [geoPresetId, geoRadiusM, myLocation],
+  );
+
+  const searchFilters = useMemo(
+    () => ({
+      doc_types: docTypeFilter ? [docTypeFilter] : undefined,
+      dietary_tags: dietaryTags.length ? dietaryTags : undefined,
+    }),
+    [docTypeFilter, dietaryTags],
+  );
+
+  const geoPayload = useMemo(
+    () => (activeGeo ? { lat: activeGeo.lat, lon: activeGeo.lon, radius_m: activeGeo.radius_m } : undefined),
+    [activeGeo],
+  );
 
   const mapPinCount = useMemo(() => collectMapPinCount(result), [result]);
 
@@ -77,8 +101,26 @@ export function CompareShell() {
   const submitText = () => {
     if (!query.trim()) return;
     sfx(playSearch);
-    const filters = docTypeFilter ? { doc_types: [docTypeFilter] } : undefined;
-    searchText(query.trim(), undefined, filters);
+    searchText(query.trim(), geoPayload, searchFilters);
+  };
+
+  const requestNearMe = () => {
+    if (!navigator.geolocation) return;
+    setGeoLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setMyLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setGeoLocating(false);
+      },
+      () => setGeoLocating(false),
+      { enableHighAccuracy: false, timeout: 10000 },
+    );
+  };
+
+  const handleGeoPresetChange = (id: string) => {
+    sfx(playFilter);
+    setGeoPresetId(id);
+    if (id === "me") requestNearMe();
   };
 
   const scrollToCard = (docId: string) => {
@@ -142,7 +184,7 @@ export function CompareShell() {
     setSearchBreadcrumb(discoverLabel ?? null);
     setDetailHit(null);
     sfx(playSearch);
-    searchText(q);
+    searchText(q, geoPayload, searchFilters);
   };
 
   const showWelcome = appView === "search" && !result && !loading && !error;
@@ -176,6 +218,10 @@ export function CompareShell() {
           demos={demos}
           promptsOpen={promptsOpen}
           docTypeFilter={docTypeFilter}
+          dietaryTags={dietaryTags}
+          geoPresetId={geoPresetId}
+          geoRadiusM={geoRadiusM}
+          geoLocating={geoLocating}
           soundsOn={soundsOn}
           loading={loading}
           photoIsUpload={photoIsUpload}
@@ -212,15 +258,21 @@ export function CompareShell() {
             sfx(playFilter);
             setDocTypeFilter(f);
           }}
+          onDietaryChange={(tags) => {
+            sfx(playFilter);
+            setDietaryTags(tags);
+          }}
+          onGeoPresetChange={handleGeoPresetChange}
+          onGeoRadiusChange={setGeoRadiusM}
           onPhotoUpload={(uri) => {
             sfx(playSearch);
             setSearchBreadcrumb(null);
-            searchPhoto(undefined, uri);
+            searchPhoto(undefined, uri, geoPayload);
           }}
           onPhotoPick={(id) => {
             sfx(playClick);
             setSearchBreadcrumb(null);
-            searchPhoto(id);
+            searchPhoto(id, undefined, geoPayload);
           }}
           onBreadcrumbBack={() => {
             sfx(playClick);
@@ -247,7 +299,10 @@ export function CompareShell() {
               onSelectHit={(id, column) => {
                 const hits = column === "jina" ? result.hybrid_jina.hits : result.hybrid_oss.hits;
                 const hit = hits?.find((h) => h.doc_id === id);
-                if (hit) selectHit(hit, true);
+                if (hit) {
+                  selectHit(hit, true, true);
+                  if (!mapCollapsed) setMapCollapsed(false);
+                }
               }}
             />
           )}
@@ -256,8 +311,7 @@ export function CompareShell() {
             <DiscoverPanel
               loading={discover.loading}
               error={discover.error}
-              summary={discover.data?.summary}
-              clusters={discover.data?.clusters ?? []}
+              data={discover.data}
               onRefresh={discover.reload}
               onSearchTheme={(q, label) => runThemeSearch(q, label)}
               onSelectVenue={(hit) => {
@@ -330,6 +384,8 @@ export function CompareShell() {
                         const { hit: resolved, inResults } = hitFromResults(hit);
                         selectHit(resolved, false, inResults);
                       }}
+                      center={activeGeo ? { lat: activeGeo.lat, lon: activeGeo.lon } : undefined}
+                      radiusM={activeGeo?.radius_m}
                       className="h-full min-h-0"
                     />
                   </aside>
@@ -440,7 +496,14 @@ export function CompareShell() {
       variant={detailHit?.variant}
       onClose={() => setDetailHit(null)}
     />
-    <AgentChatPanel result={result} selectedHit={selectedHit} query={query} mode={mode} />
+    <AgentChatPanel
+      result={result}
+      selectedHit={selectedHit}
+      query={query}
+      mode={mode}
+      appView={appView}
+      discoverClusters={discover.data?.clusters ?? []}
+    />
     </>
   );
 }

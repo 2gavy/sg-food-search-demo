@@ -84,6 +84,154 @@ def _format_graph_context(graph: VenueGraphResponse) -> list[str]:
     return lines
 
 
+def _hit_line(hit: dict[str, Any], rank: int) -> str:
+    parts = [f"{rank}. **{hit.get('title', '')}**"]
+    if hit.get("signature_dish"):
+        parts.append(f"dish: {hit['signature_dish']}")
+    if hit.get("hawker_centre"):
+        parts.append(f"@ {hit['hawker_centre']}")
+    if hit.get("match_reason"):
+        parts.append(f"({hit['match_reason']})")
+    parts.append(f"doc_id: {hit.get('doc_id', '')}")
+    return " · ".join(parts)
+
+
+def format_results_context(selection: dict[str, Any], graph: VenueGraphResponse | None = None) -> str:
+    """Context when user chats about compare results without picking a single venue."""
+    diff = selection.get("diff_summary") or {}
+    top = selection.get("top_hits") or {}
+
+    lines = [
+        "## SG Food Discovery compare results (web app)",
+        f"- Search query: {selection.get('query', '')}",
+        f"- Search mode: {selection.get('mode', 'text')}",
+        "",
+        "### Column diff (top 10)",
+        f"- Jina-only vs keywords: {', '.join(diff.get('hybrid_only_jina') or []) or 'none'}",
+        f"- E5-only vs keywords: {', '.join(diff.get('hybrid_only_oss') or []) or 'none'}",
+        f"- In all three columns: {', '.join(diff.get('all_three') or []) or 'none'}",
+        f"- Keywords-only: {', '.join(diff.get('lexical_only') or []) or 'none'}",
+        "",
+        "### Top results per column",
+    ]
+
+    for col_name, key in (
+        ("Keywords (BM25)", "lexical"),
+        ("Open-source hybrid (E5)", "hybrid_oss"),
+        ("Multimodal hybrid (Jina)", "hybrid_jina"),
+    ):
+        hits = top.get(key) or []
+        lines.append(f"\n#### {col_name}")
+        if not hits:
+            lines.append("- (no results)")
+            continue
+        for i, h in enumerate(hits[:5], start=1):
+            lines.append(f"- {_hit_line(h, i)}")
+
+    selected = selection.get("selected")
+    if selected:
+        lines.extend(["", "### User focus venue (optional)", f"- **{selected.get('title', '')}** · doc_id: {selected.get('doc_id', '')}"])
+        columns = selection.get("columns") or {}
+        lines.extend(
+            [
+                _column_line("Keywords (BM25)", columns.get("lexical")),
+                _column_line("Open-source hybrid (E5)", columns.get("hybrid_oss")),
+                _column_line("Multimodal hybrid (Jina)", columns.get("hybrid_jina")),
+            ]
+        )
+        diff_tags = selection.get("diff_tags") or []
+        if diff_tags:
+            lines.append(f"- Diff tags: {', '.join(diff_tags)}")
+        if graph:
+            lines.extend(_format_graph_context(graph))
+
+    lines.append("")
+    lines.append(
+        "The user is comparing keyword vs E5 vs Jina search on the same Singapore food corpus. "
+        "Answer from the result lists and diff summary above. "
+        "Explain why hybrid columns differ from keywords, compare E5 vs Jina when relevant, "
+        "and recommend which stalls to try. "
+        "If they ask about a specific venue and one is listed under focus, prioritize that stall."
+    )
+    return "\n".join(lines)
+
+
+def format_browse_context(selection: dict[str, Any], graph: VenueGraphResponse | None = None) -> str:
+    """Context when the user opens concierge without running compare search."""
+    lines = [
+        "## SG Food Discovery — browse / concierge mode",
+        "The user opened the concierge without a side-by-side compare search loaded.",
+        f"- UI tab: {selection.get('app_view', 'search')}",
+        f"- Search mode toggle: {selection.get('mode', 'text')}",
+    ]
+    draft = (selection.get("query") or "").strip()
+    if draft:
+        lines.append(f'- Draft in search box (not submitted): "{draft}"')
+
+    discover = selection.get("discover_preview") or []
+    if discover:
+        lines.append("")
+        lines.append("### Discover food scenes (from corpus clustering)")
+        for item in discover[:6]:
+            label = item.get("label", "")
+            size = item.get("size", 0)
+            sq = item.get("search_query", "")
+            sub = item.get("subtitle") or ""
+            extra = f" · {sub}" if sub else ""
+            lines.append(f"- **{label}** ({size} stalls){extra}" + (f' · try search: "{sq}"' if sq else ""))
+
+    selected = selection.get("selected")
+    if selected:
+        lines.extend(
+            [
+                "",
+                "### Venue the user is looking at (from Discover or map — no compare columns yet)",
+                f"- Title: {selected.get('title', '')}",
+                f"- doc_id: {selected.get('doc_id', '')}",
+            ]
+        )
+        for key, label in (
+            ("signature_dish", "Dish"),
+            ("hawker_centre", "Hawker centre"),
+            ("neighbourhood", "Neighbourhood"),
+            ("description", "Description"),
+        ):
+            if selected.get(key):
+                lines.append(f"- {label}: {selected[key]}")
+        if selected.get("rating") is not None:
+            lines.append(f"- Rating: {selected['rating']}")
+
+    if graph:
+        lines.extend(_format_graph_context(graph))
+    elif selected and selection.get("graph"):
+        try:
+            lines.extend(_format_graph_context(VenueGraphResponse.model_validate(selection["graph"])))
+        except Exception:
+            pass
+
+    lines.extend(
+        [
+            "",
+            "You are the SG Food Concierge for an Elastic demo comparing **Keywords (BM25)**, "
+            "**E5 hybrid**, and **Jina multimodal hybrid** on Singapore hawker & restaurant data.",
+            "Help with: what the demo shows, how hybrid search differs from keywords, multilingual queries, "
+            "photo search, Discover scenes, and stall recommendations.",
+            "If they have not searched yet, suggest concrete demo queries (laksa, halal makan, 麻辣火锅).",
+            "Do not invent venue rankings — if compare results are missing, say a search will load three columns.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def format_agent_context(selection: dict[str, Any], graph: VenueGraphResponse | None = None) -> str:
+    if selection.get("context_type") == "browse":
+        return format_browse_context(selection, graph)
+    selected = selection.get("selected")
+    if selected and selection.get("columns"):
+        return format_selection_context(selection, graph)
+    return format_results_context(selection, graph)
+
+
 def format_selection_context(selection: dict[str, Any], graph: VenueGraphResponse | None = None) -> str:
     hit = selection.get("selected") or {}
     lines = [
@@ -156,8 +304,8 @@ def converse(
             "Agent Builder is not configured. Set ELASTICSEARCH_URL and ES_API_KEY in .env.",
             status_code=503,
         )
-    if not selection_context or not selection_context.get("selected"):
-        raise AgentBuilderError("Select a venue from the search results first.", status_code=400)
+    if not selection_context:
+        raise AgentBuilderError("Missing concierge context.", status_code=400)
     if not llm_configured():
         raise AgentBuilderError(
             "LLM connector is not configured. Set LLM_CONNECTOR_ID in .env to your Agent Builder model connector.",
@@ -180,7 +328,7 @@ def converse(
                 graph = None
 
     payload: dict[str, Any] = {
-        "input": f"{format_selection_context(selection_context, graph)}\n\nUser: {message.strip()}",
+        "input": f"{format_agent_context(selection_context, graph)}\n\nUser: {message.strip()}",
         "agent_id": AGENT_BUILDER_AGENT_ID,
         "connector_id": LLM_CONNECTOR_ID,
     }

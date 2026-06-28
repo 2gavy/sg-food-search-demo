@@ -11,7 +11,6 @@ export default defineConfig({
       "/cases": "http://127.0.0.1:8000",
       "/agent": "http://127.0.0.1:8000",
       "/discover": "http://127.0.0.1:8000",
-      "/assets": "http://127.0.0.1:8000",
       "/data": "http://127.0.0.1:8000",
     },
   },

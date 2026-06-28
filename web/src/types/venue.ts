@@ -106,8 +106,20 @@ export interface DiscoverClustersResponse {
   clusters: DiscoverCluster[];
   noise_count: number;
   total_venues: number;
+  clustered_count?: number;
+  noise_pct?: number;
   took_ms: number;
   engine: "density_probe_knn" | "local_heuristic";
   vector_field: string;
   summary: string;
+}
+
+export interface DiscoverClusterExploreResponse {
+  cluster_id: string;
+  label: string;
+  hits: Hit[];
+  method: "diversify" | "knn";
+  lambda_mmr: number;
+  took_ms: number;
+  note: string;
 }

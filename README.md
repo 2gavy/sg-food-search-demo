@@ -81,7 +81,9 @@ One container serves the **built React UI + FastAPI** on port `8080`. Elasticsea
 
 ### Console deploy (no local CLI)
 
-**→ [docs/CLOUD_RUN_CONSOLE.md](docs/CLOUD_RUN_CONSOLE.md)** — step-by-step using only the GCP Console and GitHub (connect repo, Dockerfile build, secrets, env vars).
+**→ Continuous deploy from GitHub (Cloud Build 2nd gen):** [docs/CLOUD_RUN_CONTINUOUS_DEPLOY.md](docs/CLOUD_RUN_CONTINUOUS_DEPLOY.md)
+
+**→ One-shot / fallback:** [docs/CLOUD_SHELL_DEPLOY.md](docs/CLOUD_SHELL_DEPLOY.md)
 
 Quick checklist:
 

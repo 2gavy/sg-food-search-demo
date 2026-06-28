@@ -91,6 +91,91 @@ def test_save_case(client):
     assert body["index"]
 
 
+def test_discover_cluster_explore_local(client):
+    clusters = client.get("/discover/clusters").json()
+    if not clusters.get("clusters"):
+        return
+    cid = clusters["clusters"][0]["cluster_id"]
+    r = client.get(f"/discover/clusters/{cid}/explore")
+    assert r.status_code == 200
+    assert r.json()["cluster_id"] == cid
+
+
+def test_agent_status_local(client):
+    r = client.get("/agent/status", headers={"X-Demo-Session": "test-status-session"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["agent_name"] == "SG Food Concierge"
+    assert body["asks_limit"] == 3
+    assert body["asks_remaining"] == 3
+
+
+def test_agent_converse_requires_results(client):
+    r = client.post(
+        "/agent/converse",
+        json={"message": "hello", "selection_context": None},
+        headers={"X-Demo-Session": "test-no-context"},
+    )
+    assert r.status_code == 400
+
+
+def test_agent_converse_accepts_browse_context(client):
+    ctx = {
+        "context_type": "browse",
+        "query": "",
+        "mode": "text",
+        "app_view": "search",
+        "diff_summary": {
+            "hybrid_only_jina": [],
+            "hybrid_only_oss": [],
+            "all_three": [],
+            "lexical_only": [],
+        },
+        "top_hits": {"lexical": [], "hybrid_oss": [], "hybrid_jina": []},
+    }
+
+    r = client.post(
+        "/agent/converse",
+        json={"message": "what can this demo show?", "selection_context": ctx, "session_id": "test-browse"},
+        headers={"X-Demo-Session": "test-browse"},
+    )
+    assert r.status_code in (200, 502, 503)
+
+
+def test_agent_converse_accepts_results_without_selection(client):
+    r = client.post(
+        "/search/compare",
+        json={"query": "laksa", "size": 3},
+    )
+    assert r.status_code == 200
+    compare = r.json()
+
+    ctx = {
+        "context_type": "compare",
+        "query": compare["query"],
+        "mode": compare["mode"],
+        "diff_summary": {
+            "hybrid_only_jina": compare["diff"]["hybrid_only_jina"],
+            "hybrid_only_oss": compare["diff"]["hybrid_only_oss"],
+            "all_three": compare["diff"]["all_three"],
+            "lexical_only": compare["diff"]["lexical_only"],
+        },
+        "top_hits": {
+            "lexical": compare["lexical"]["hits"],
+            "hybrid_oss": compare["hybrid_oss"]["hits"],
+            "hybrid_jina": compare["hybrid_jina"]["hits"],
+        },
+    }
+
+    r = client.post(
+        "/agent/converse",
+        json={"message": "summarize", "selection_context": ctx, "session_id": "test-results-only"},
+        headers={"X-Demo-Session": "test-results-only"},
+    )
+    # 503 when Agent Builder not configured in test env; 400 only if context rejected
+    assert r.status_code in (200, 502, 503)
+
+
 def test_demo_queries_static(client):
     r = client.get("/data/demo_queries.json")
     assert r.status_code == 200

@@ -3,6 +3,8 @@ import { AppViewToggle } from "./AppViewToggle";
 import { SearchModeToggle } from "./SearchModeToggle";
 import { SoundToggle } from "./SoundToggle";
 import { DocTypeFilters } from "./DocTypeFilters";
+import { DietaryFilters } from "./DietaryFilters";
+import { GeoFilters } from "./GeoFilters";
 import { TextSearchBar } from "./TextSearchBar";
 import { PhotoUpload } from "./PhotoUpload";
 import { PhotoSearchNotice } from "./PhotoSearchNotice";
@@ -17,6 +19,10 @@ interface Props {
   demos: DemoQuery[];
   promptsOpen: boolean;
   docTypeFilter: string | null;
+  dietaryTags: string[];
+  geoPresetId: string;
+  geoRadiusM: number;
+  geoLocating: boolean;
   soundsOn: boolean;
   loading: boolean;
   photoIsUpload: boolean;
@@ -30,6 +36,9 @@ interface Props {
   onPromptsOpenChange: (open: boolean) => void;
   onSelectDemo: (demo: DemoQuery) => void;
   onDocTypeChange: (f: string | null) => void;
+  onDietaryChange: (tags: string[]) => void;
+  onGeoPresetChange: (id: string) => void;
+  onGeoRadiusChange: (radiusM: number) => void;
   onPhotoUpload: (uri: string) => void;
   onPhotoPick: (id: string) => void;
   onBreadcrumbBack: () => void;
@@ -42,6 +51,10 @@ export function AppCommandBar({
   demos,
   promptsOpen,
   docTypeFilter,
+  dietaryTags,
+  geoPresetId,
+  geoRadiusM,
+  geoLocating,
   soundsOn,
   loading,
   photoIsUpload,
@@ -55,6 +68,9 @@ export function AppCommandBar({
   onPromptsOpenChange,
   onSelectDemo,
   onDocTypeChange,
+  onDietaryChange,
+  onGeoPresetChange,
+  onGeoRadiusChange,
   onPhotoUpload,
   onPhotoPick,
   onBreadcrumbBack,
@@ -99,7 +115,17 @@ export function AppCommandBar({
           />
 
           {appView === "search" && (
-            <DocTypeFilters value={docTypeFilter} onChange={onDocTypeChange} />
+            <>
+              <DocTypeFilters value={docTypeFilter} onChange={onDocTypeChange} />
+              <DietaryFilters value={dietaryTags} onChange={onDietaryChange} />
+              <GeoFilters
+                presetId={geoPresetId}
+                radiusM={geoRadiusM}
+                locating={geoLocating}
+                onPresetChange={onGeoPresetChange}
+                onRadiusChange={onGeoRadiusChange}
+              />
+            </>
           )}
         </div>
       </div>

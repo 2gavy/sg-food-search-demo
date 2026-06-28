@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { CompareResponse, GraphEdge, GraphEdgeType, Hit, VenueGraphResponse } from "../types/venue";
 import { formatBuyerMatchReason } from "../lib/matchReason";
 import { resolveVenueImageUrl } from "../lib/venueImage";
+import { fetchVenueGraph } from "../lib/venueGraphCache";
 
 const pinIcon = new L.Icon({
   iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
@@ -550,12 +551,8 @@ export function SyncMapView({
     }
     const controller = new AbortController();
     setGraphLoading(true);
-    fetch(
-      `/search/graph/${encodeURIComponent(selectedHit.doc_id)}?hops=2&limit=2`,
-      { signal: controller.signal },
-    )
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: VenueGraphResponse | null) => setGraph(data))
+    fetchVenueGraph(selectedHit.doc_id, { hops: 2, limit: 2, signal: controller.signal })
+      .then((data) => setGraph(data))
       .catch(() => setGraph(null))
       .finally(() => setGraphLoading(false));
     return () => controller.abort();

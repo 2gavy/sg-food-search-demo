@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import time
 from pathlib import Path
+from threading import Lock
 
 import requests
 
@@ -28,6 +29,29 @@ def _inference_url(endpoint_id: str, task_type: str = "embedding") -> str:
     return f"{base}/_inference/{task_type}/{endpoint_id}"
 
 
+_EMBED_CACHE_TTL_SEC = 300
+_embed_cache: dict[tuple[str, str], tuple[float, list[float]]] = {}
+_embed_cache_lock = Lock()
+
+
+def _cache_get(key: tuple[str, str]) -> list[float] | None:
+    now = time.time()
+    with _embed_cache_lock:
+        entry = _embed_cache.get(key)
+        if not entry:
+            return None
+        ts, vec = entry
+        if now - ts > _EMBED_CACHE_TTL_SEC:
+            _embed_cache.pop(key, None)
+            return None
+        return vec
+
+
+def _cache_set(key: tuple[str, str], vec: list[float]) -> None:
+    with _embed_cache_lock:
+        _embed_cache[key] = (time.time(), vec)
+
+
 def _parse_embedding(data: dict) -> list[float]:
     if "embeddings" in data:
         item = data["embeddings"][0]
@@ -44,6 +68,10 @@ def _parse_embedding(data: dict) -> list[float]:
 
 
 def embed_text(text: str, task: str = "retrieval.query") -> list[float]:
+    cache_key = (text, f"jina:{task}")
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
     body = {"input": text, "task_settings": {"task": task}}
     resp = requests.post(
         _inference_url(INFERENCE_ENDPOINT_ID),
@@ -52,11 +80,17 @@ def embed_text(text: str, task: str = "retrieval.query") -> list[float]:
         timeout=120,
     )
     resp.raise_for_status()
-    return _parse_embedding(resp.json())
+    vec = _parse_embedding(resp.json())
+    _cache_set(cache_key, vec)
+    return vec
 
 
 def embed_text_oss(text: str, *, query: bool = True) -> list[float]:
     """Embed text with multilingual-e5-small (query:/passage: prefix convention)."""
+    cache_key = (text, f"oss:{'q' if query else 'p'}")
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
     prefix = "query: " if query else "passage: "
     body = {"input": prefix + text}
     url = _inference_url(INFERENCE_ENDPOINT_OSS_ID, task_type="text_embedding")
@@ -64,7 +98,9 @@ def embed_text_oss(text: str, *, query: bool = True) -> list[float]:
     for attempt in range(3):
         resp = requests.post(url, headers=_headers(), json=body, timeout=180)
         if resp.ok:
-            return _parse_embedding(resp.json())
+            vec = _parse_embedding(resp.json())
+            _cache_set(cache_key, vec)
+            return vec
         if resp.status_code in (408, 429, 503, 504):
             last_exc = requests.HTTPError(f"{resp.status_code} on attempt {attempt + 1}", response=resp)
             time.sleep(2 * (attempt + 1))

@@ -6,6 +6,7 @@ import json
 import math
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -391,57 +392,54 @@ def compare_text_es(
     es = _client()
     geo = {"lat": lat, "lon": lon, "radius_m": radius_m} if lat is not None and lon is not None else None
     filters = _build_es_filters(doc_types, dietary, geo)
-
     fetch = min(size * 4, 50)
 
-    t0 = time.time()
-    lex_hits, lex_resp = _lexical_search(es, query, filters, lat, lon, fetch)
-    lex_hits = _normalize_result_hits(lex_hits, size)
-    t1 = time.time()
+    def _lexical_branch() -> tuple[list[Hit], Any, float]:
+        t0 = time.time()
+        hits, resp = _lexical_search(es, query, filters, lat, lon, fetch)
+        return _normalize_result_hits(hits, size), resp, time.time() - t0
 
-    oss_hits: list[Hit] = []
-    oss_total = 0
-    oss_message: str | None = None
-    oss_unsupported = False
-    try:
-        oss_vector = embed_text_oss(query, query=True)
-        oss_hits, oss_resp = _hybrid_rrf(
-            es, query, oss_vector, "embedding_oss", filters, fetch, "hybrid-oss", lat, lon
+    def _oss_branch() -> tuple[list[Hit], int, float, bool, str | None]:
+        t0 = time.time()
+        try:
+            oss_vector = embed_text_oss(query, query=True)
+            hits, _resp = _hybrid_rrf(
+                es, query, oss_vector, "embedding_oss", filters, fetch, "hybrid-oss", lat, lon
+            )
+            return _normalize_result_hits(hits, size), len(hits), time.time() - t0, False, None
+        except Exception as exc:
+            return [], 0, time.time() - t0, True, (
+                f"E5 hybrid unavailable — run setup_inference_oss.py and backfill_embeddings.py ({exc})"
+            )
+
+    def _jina_branch() -> tuple[list[Hit], float]:
+        t0 = time.time()
+        jina_vector = embed_text(query, task="retrieval.query")
+        hits, _resp = _hybrid_rrf(
+            es, query, jina_vector, "embedding", filters, fetch, "hybrid-jina", lat, lon
         )
-        oss_hits = _normalize_result_hits(oss_hits, size)
-        oss_total = len(oss_hits)
-    except Exception as exc:
-        oss_unsupported = True
-        oss_message = f"E5 hybrid unavailable — run setup_inference_oss.py and backfill_embeddings.py ({exc})"
-    t2 = time.time()
+        return _normalize_result_hits(hits, size), time.time() - t0
 
-    jina_vector = embed_text(query, task="retrieval.query")
-    jina_hits, jina_resp = _hybrid_rrf(
-        es, query, jina_vector, "embedding", filters, fetch, "hybrid-jina", lat, lon
-    )
-    jina_hits = _normalize_result_hits(jina_hits, size)
-    t3 = time.time()
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        fut_lex = pool.submit(_lexical_branch)
+        fut_oss = pool.submit(_oss_branch)
+        fut_jina = pool.submit(_jina_branch)
+        lex_hits, _lex_resp, lex_dt = fut_lex.result()
+        oss_hits, oss_total, oss_dt, oss_unsupported, oss_message = fut_oss.result()
+        jina_hits, jina_dt = fut_jina.result()
 
     return CompareResponse(
         query=query,
         mode="text",
-        lexical=SearchSide(
-            hits=lex_hits,
-            total=len(lex_hits),
-            took_ms=int((t1 - t0) * 1000),
-        ),
+        lexical=SearchSide(hits=lex_hits, total=len(lex_hits), took_ms=int(lex_dt * 1000)),
         hybrid_oss=SearchSide(
             hits=oss_hits,
             total=oss_total,
-            took_ms=int((t2 - t1) * 1000),
+            took_ms=int(oss_dt * 1000),
             unsupported=oss_unsupported,
             message=oss_message,
         ),
-        hybrid_jina=SearchSide(
-            hits=jina_hits,
-            total=len(jina_hits),
-            took_ms=int((t3 - t2) * 1000),
-        ),
+        hybrid_jina=SearchSide(hits=jina_hits, total=len(jina_hits), took_ms=int(jina_dt * 1000)),
         diff=_build_diff(lex_hits, oss_hits, jina_hits),
     )
 

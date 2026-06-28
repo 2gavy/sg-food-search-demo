@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { fetchVenueGraph } from "../lib/venueGraphCache";
 import type { VenueGraphResponse } from "../types/venue";
 
 export function useVenueGraph(docId: string | null | undefined, enabled = true) {
@@ -14,9 +15,8 @@ export function useVenueGraph(docId: string | null | undefined, enabled = true) 
 
     const controller = new AbortController();
     setLoading(true);
-    fetch(`/search/graph/${encodeURIComponent(docId)}?hops=2&limit=2`, { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: VenueGraphResponse | null) => setGraph(data))
+    fetchVenueGraph(docId, { signal: controller.signal })
+      .then((data) => setGraph(data))
       .catch(() => setGraph(null))
       .finally(() => setLoading(false));
 

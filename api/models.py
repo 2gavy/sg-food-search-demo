@@ -139,12 +139,15 @@ class AgentStatusResponse(BaseModel):
     agent_id: str
     agent_name: str
     llm_configured: bool = False
+    asks_limit: int = 3
+    asks_remaining: int = 3
 
 
 class AgentConverseRequest(BaseModel):
     message: str = Field(min_length=1, max_length=8000)
     conversation_id: str | None = None
     selection_context: dict | None = None
+    session_id: str | None = Field(default=None, max_length=128)
 
 
 class AgentConverseResponse(BaseModel):
@@ -155,6 +158,7 @@ class AgentConverseResponse(BaseModel):
     steps: list[dict] = Field(default_factory=list)
     model_usage: dict | None = None
     context_attached: bool = False
+    asks_remaining: int = 0
 
 
 class DiscoverClusterTerm(BaseModel):
@@ -171,6 +175,17 @@ class DiscoverCluster(BaseModel):
     sample_hits: list[Hit] = Field(default_factory=list)
     density: float | None = None
     search_query: str = ""
+    seed_doc_id: str | None = None
+
+
+class DiscoverClusterExploreResponse(BaseModel):
+    cluster_id: str
+    label: str
+    hits: list[Hit] = Field(default_factory=list)
+    method: Literal["diversify", "knn"] = "knn"
+    lambda_mmr: float = 0.5
+    took_ms: int = 0
+    note: str = ""
 
 
 class DiscoverClustersResponse(BaseModel):
@@ -181,3 +196,5 @@ class DiscoverClustersResponse(BaseModel):
     engine: Literal["density_probe_knn", "local_heuristic"] = "density_probe_knn"
     vector_field: str = "embedding_clustering"
     summary: str = ""
+    clustered_count: int = 0
+    noise_pct: float = 0.0

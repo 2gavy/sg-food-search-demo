@@ -1,7 +1,4 @@
-"""Unsupervised venue clustering — density-probed kNN centroids + significant_text labels.
-
-Inspired by Elasticsearch Labs: Jina clustering embeddings + msearch kNN + significant_text.
-"""
+"""Unsupervised venue clustering — Elastic Labs pipeline: density-probed kNN + significant_text."""
 
 from __future__ import annotations
 
@@ -13,7 +10,13 @@ from collections import Counter
 from typing import Any
 
 from api.config import CORPUS_INDEX
-from api.models import DiscoverCluster, DiscoverClusterTerm, DiscoverClustersResponse, Hit
+from api.models import (
+    DiscoverCluster,
+    DiscoverClusterExploreResponse,
+    DiscoverClusterTerm,
+    DiscoverClustersResponse,
+    Hit,
+)
 from api.services.elasticsearch import (
     VENUE_DOC_TYPES,
     _client,
@@ -37,10 +40,6 @@ NUM_CANDIDATES = 80
 
 GENERIC_LABEL_TERMS = frozenset(
     {
-        "the",
-        "and",
-        "for",
-        "with",
         "food",
         "singapore",
         "stall",
@@ -49,30 +48,21 @@ GENERIC_LABEL_TERMS = frozenset(
         "centre",
         "restaurant",
         "local",
-        "famous",
-        "best",
-        "good",
-        "great",
-        "fresh",
-        "traditional",
-        "authentic",
-        "popular",
-        "serving",
-        "served",
-        "made",
-        "using",
-        "style",
-        "classic",
-        "special",
-        "house",
-        "signature",
         "dish",
         "dishes",
+        "serving",
+        "style",
+        "house",
+        "signature",
     }
 )
 
 _cache: dict[str, tuple[float, DiscoverClustersResponse]] = {}
 CACHE_TTL_SEC = 600
+_cluster_members: dict[str, list[str]] = {}
+_cluster_seed_vectors: dict[str, list[float]] = {}
+_cluster_labels: dict[str, str] = {}
+_last_vector_field: str = CLUSTERING_FIELD
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -95,19 +85,67 @@ def _clean_label_term(term: str) -> str | None:
     return t
 
 
-def _build_label(terms: list[DiscoverClusterTerm], fallback_title: str | None) -> str:
-    cleaned = []
-    for item in terms:
+def _describe_cluster_metadata(members: list[dict]) -> tuple[str, str | None, str]:
+    dish = _format_dish(_mode_field(members, "signature_dish") or _mode_field(members, "dish_id"))
+    hawker = _best_hawker(members)
+    area = _best_area(members)
+    cuisine = _mode_field(members, "cuisine", min_share=0.35)
+
+    if hawker:
+        label = hawker if not dish else f"{hawker} · {dish}"
+        subtitle = area or cuisine
+    elif dish and area:
+        label = f"{dish} · {area}"
+        subtitle = cuisine
+    elif dish:
+        label = dish
+        subtitle = area or cuisine
+    elif area:
+        label = area
+        subtitle = cuisine
+    else:
+        label = "Singapore food"
+        subtitle = cuisine
+
+    query_bits = [x.lower() for x in (dish, hawker, area) if x]
+    search_query = " ".join(query_bits[:2]) or label.replace(" · ", " ").lower()
+    return label, subtitle, search_query
+
+
+def _label_from_sig_terms(
+    sig_terms: list[DiscoverClusterTerm],
+    members: list[dict],
+) -> tuple[str, str | None, str, list[DiscoverClusterTerm]]:
+    """Article: significant_text terms become the cluster label."""
+    terms: list[DiscoverClusterTerm] = []
+    cleaned: list[str] = []
+    for item in sig_terms:
         t = _clean_label_term(item.term)
-        if t and t not in cleaned:
-            cleaned.append(t)
-        if len(cleaned) >= 4:
+        if not t or t in cleaned:
+            continue
+        cleaned.append(t)
+        terms.append(DiscoverClusterTerm(term=t, score=item.score))
+        if len(cleaned) >= 3:
             break
-    if cleaned:
-        return " · ".join(cleaned[:4])
-    if fallback_title:
-        return fallback_title[:60]
-    return "Food cluster"
+
+    if not terms:
+        label, subtitle, search_query = _describe_cluster_metadata(members)
+        return label, subtitle, search_query, []
+
+    label = " · ".join(cleaned[:3])
+    subtitle = _best_area(members) or _mode_field(members, "cuisine", min_share=0.35)
+    search_query = " ".join(cleaned[:2]).lower()
+    return label, subtitle, search_query, terms
+
+
+def _describe_cluster(
+    members: list[dict],
+    sig_terms: list[DiscoverClusterTerm],
+) -> tuple[str, str | None, str, list[DiscoverClusterTerm]]:
+    if sig_terms:
+        return _label_from_sig_terms(sig_terms, members)
+    label, subtitle, search_query = _describe_cluster_metadata(members)
+    return label, subtitle, search_query, []
 
 
 GENERIC_AREAS = frozenset(
@@ -174,79 +212,6 @@ def _mode_field(members: list[dict], field: str, *, min_share: float = 0.0) -> s
     if min_share and n / len(members) < min_share:
         return None
     return top
-
-
-def _title_noise_tokens(members: list[dict]) -> set[str]:
-    noise: set[str] = set()
-    for m in members:
-        title = str(m.get("title", "")).lower()
-        for tok in re.findall(r"[a-z]{4,}", title):
-            noise.add(tok)
-    return noise
-
-
-def _filter_sig_terms(terms: list[DiscoverClusterTerm], members: list[dict]) -> list[DiscoverClusterTerm]:
-    title_noise = _title_noise_tokens(members)
-    out: list[DiscoverClusterTerm] = []
-    for t in terms:
-        cleaned = _clean_label_term(t.term)
-        if not cleaned or cleaned in title_noise:
-            continue
-        if cleaned not in {x.term for x in out}:
-            out.append(DiscoverClusterTerm(term=cleaned, score=t.score))
-    return out[:8]
-
-
-def _describe_cluster(
-    members: list[dict],
-    sig_terms: list[DiscoverClusterTerm],
-) -> tuple[str, str | None, str, list[DiscoverClusterTerm]]:
-    """Build human labels from venue metadata — hawker centre, neighbourhood, dish."""
-    sources = [m if "title" in m else m.get("source", m) for m in members]
-    dish = _format_dish(_mode_field(sources, "signature_dish") or _mode_field(sources, "dish_id"))
-    hawker = _best_hawker(sources)
-    area = _best_area(sources)
-    cuisine = _mode_field(sources, "cuisine", min_share=0.35)
-
-    terms = _filter_sig_terms(sig_terms, sources)
-
-    label_parts: list[str] = []
-    subtitle: str | None = None
-
-    if hawker:
-        label_parts.append(hawker)
-        if dish:
-            label_parts.append(dish)
-        subtitle = area
-    elif area and dish:
-        label_parts = [area, dish]
-        subtitle = cuisine
-    elif dish:
-        label_parts = [dish]
-        subtitle = area or cuisine
-    elif area:
-        label_parts = [area]
-        subtitle = cuisine
-    elif terms:
-        label_parts = [terms[0].term.title()]
-    else:
-        label_parts = ["Singapore hawker food"]
-
-    label = " · ".join(label_parts[:2])
-
-    query_parts: list[str] = []
-    if dish:
-        query_parts.append(dish.lower())
-    if hawker:
-        query_parts.append(hawker.lower())
-    elif area:
-        query_parts.append(area.lower())
-    search_query = " ".join(query_parts[:2]) or label.replace(" · ", " ").lower()
-
-    if not subtitle:
-        subtitle = cuisine or _mode_field(sources, "vibes")
-
-    return label, subtitle, search_query, terms
 
 
 def _sort_clusters(clusters: list[DiscoverCluster]) -> list[DiscoverCluster]:
@@ -434,6 +399,7 @@ def _classify_against_seeds(
 
 
 def _significant_terms_for_cluster(es, doc_ids: list[str]) -> list[DiscoverClusterTerm]:
+    """Article: significant_text labels each cluster vs full corpus background."""
     if not doc_ids:
         return []
     body = {
@@ -443,15 +409,15 @@ def _significant_terms_for_cluster(es, doc_ids: list[str]) -> list[DiscoverClust
             "sig_dish": {
                 "significant_text": {
                     "field": "signature_dish",
-                    "size": 8,
+                    "size": 5,
                     "filter_duplicate_text": True,
                     "background_filter": {"bool": {"filter": _venue_filters()}},
                 }
             },
-            "sig_title": {
+            "sig_desc": {
                 "significant_text": {
-                    "field": "title",
-                    "size": 6,
+                    "field": "description",
+                    "size": 5,
                     "filter_duplicate_text": True,
                     "background_filter": {"bool": {"filter": _venue_filters()}},
                 }
@@ -459,22 +425,15 @@ def _significant_terms_for_cluster(es, doc_ids: list[str]) -> list[DiscoverClust
             "sig_hawker": {
                 "significant_text": {
                     "field": "hawker_centre",
-                    "size": 5,
+                    "size": 4,
                     "filter_duplicate_text": True,
-                    "background_filter": {"bool": {"filter": _venue_filters()}},
-                }
-            },
-            "sig_cuisine": {
-                "significant_terms": {
-                    "field": "cuisine",
-                    "size": 5,
                     "background_filter": {"bool": {"filter": _venue_filters()}},
                 }
             },
             "sig_area": {
                 "significant_terms": {
                     "field": "neighbourhood",
-                    "size": 5,
+                    "size": 4,
                     "background_filter": {"bool": {"filter": _venue_filters()}},
                 }
             },
@@ -487,20 +446,50 @@ def _significant_terms_for_cluster(es, doc_ids: list[str]) -> list[DiscoverClust
 
     terms: list[DiscoverClusterTerm] = []
     aggs = resp.body.get("aggregations", {})
-    priority = ("sig_dish", "sig_area", "sig_cuisine", "sig_hawker", "sig_title")
-    seen_terms: set[str] = set()
-    for key in priority:
-        agg = aggs.get(key, {})
-        buckets = agg.get("buckets", [])
-        for b in buckets:
-            term = b.get("key", "")
-            score = float(b.get("score", b.get("significance", 0)) or 0)
-            cleaned = _clean_label_term(str(term))
-            if cleaned and cleaned not in seen_terms:
-                seen_terms.add(cleaned)
-                terms.append(DiscoverClusterTerm(term=cleaned, score=score))
+    seen: set[str] = set()
+    for key in ("sig_dish", "sig_area", "sig_hawker", "sig_desc"):
+        for bucket in aggs.get(key, {}).get("buckets", []):
+            cleaned = _clean_label_term(str(bucket.get("key", "")))
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                terms.append(
+                    DiscoverClusterTerm(
+                        term=cleaned,
+                        score=float(bucket.get("score", bucket.get("significance", 0)) or 0),
+                    )
+                )
     terms.sort(key=lambda t: t.score, reverse=True)
-    return terms
+    return terms[:8]
+
+
+def _local_significant_terms(docs: list[dict]) -> list[DiscoverClusterTerm]:
+    bg = [d for d in load_local_corpus() if d.get("doc_type") in VENUE_DOC_TYPES]
+    fg: Counter[str] = Counter()
+    bg_counts: Counter[str] = Counter()
+
+    def tokens(doc: dict) -> list[str]:
+        parts = [doc.get("signature_dish"), doc.get("neighbourhood"), doc.get("hawker_centre")]
+        out: list[str] = []
+        for p in parts:
+            if p:
+                out.extend(re.findall(r"[a-z0-9]+", str(p).lower()))
+        return out
+
+    for d in bg:
+        bg_counts.update(tokens(d))
+    for d in docs:
+        fg.update(tokens(d))
+
+    scored: list[DiscoverClusterTerm] = []
+    bg_size = max(len(bg), 1)
+    for term, count in fg.items():
+        if _clean_label_term(term) is None:
+            continue
+        bg_count = bg_counts.get(term, 0) + 1
+        score = (count / len(docs)) / (bg_count / bg_size)
+        scored.append(DiscoverClusterTerm(term=term, score=score))
+    scored.sort(key=lambda t: t.score, reverse=True)
+    return scored[:8]
 
 
 def _row_to_hit(row: dict[str, Any], reason: str) -> Hit:
@@ -531,6 +520,11 @@ def _cluster_es(*, refresh: bool = False) -> DiscoverClustersResponse:
     t0 = time.time()
     es = _client()
     vector_field = _resolve_vector_field(es)
+    global _last_vector_field, _cluster_members, _cluster_seed_vectors, _cluster_labels
+    _last_vector_field = vector_field
+    _cluster_members = {}
+    _cluster_seed_vectors = {}
+    _cluster_labels = {}
     rows = _fetch_venue_vectors(es, vector_field)
     if len(rows) < MIN_CLUSTER_SIZE:
         return DiscoverClustersResponse(
@@ -574,10 +568,20 @@ def _cluster_es(*, refresh: bool = False) -> DiscoverClustersResponse:
         member_sources = [m["source"] for m in members]
         sig_terms = _significant_terms_for_cluster(es, member_ids)
         label, subtitle, search_query, terms = _describe_cluster(member_sources, sig_terms)
-        sample = [_row_to_hit(m, f"{label}") for m in members[:5]]
+        # Article quality gate: no significant terms → incoherent cluster → noise
+        if not terms:
+            noise_ids.update(member_ids)
+            continue
+        cluster_id = f"c{idx}"
+        _cluster_members[cluster_id] = list(dict.fromkeys(member_ids))
+        _cluster_labels[cluster_id] = label
+        seed_row = row_by_id.get(seed_id)
+        if seed_row:
+            _cluster_seed_vectors[cluster_id] = seed_row["vector"]
+        sample = [_row_to_hit(m, label) for m in members[:3]]
         clusters.append(
             DiscoverCluster(
-                cluster_id=f"c{idx}",
+                cluster_id=cluster_id,
                 label=label,
                 subtitle=subtitle,
                 terms=terms,
@@ -585,67 +589,40 @@ def _cluster_es(*, refresh: bool = False) -> DiscoverClustersResponse:
                 sample_hits=sample,
                 density=seed_density.get(seed_id),
                 search_query=search_query,
+                seed_doc_id=seed_id,
             )
         )
 
     noise_count = len(noise_ids)
-    pct = int(100 * noise_count / len(rows)) if rows else 0
+    sorted_clusters = _sort_clusters(clusters)[:9]
+    clustered_count = sum(c.size for c in sorted_clusters)
     field_note = (
         "Jina task=clustering"
         if vector_field == CLUSTERING_FIELD
-        else "retrieval embeddings (run backfill_clustering_embeddings for tighter clusters)"
+        else "retrieval embeddings — run backfill_clustering_embeddings"
     )
-    sorted_clusters = _sort_clusters(clusters)
     result = DiscoverClustersResponse(
         clusters=sorted_clusters,
         noise_count=noise_count,
         total_venues=len(rows),
+        clustered_count=clustered_count,
+        noise_pct=round(100 * noise_count / len(rows), 1) if rows else 0.0,
         took_ms=int((time.time() - t0) * 1000),
         engine="density_probe_knn",
         vector_field=vector_field,
-        summary=f"{len(sorted_clusters)} food scenes · {noise_count} unclustered ({pct}%) · {field_note}",
+        summary=(
+            f"{len(sorted_clusters)} scenes · density-probed kNN · significant_text · {field_note}"
+        ),
     )
     _cache[cache_key] = (time.time(), result)
     return result
 
 
-def _local_significant_terms(docs: list[dict]) -> list[DiscoverClusterTerm]:
-    bg = load_local_corpus()
-    bg = [d for d in bg if d.get("doc_type") in VENUE_DOC_TYPES]
-    counters: Counter[str] = Counter()
-    bg_counters: Counter[str] = Counter()
-
-    def tokens(doc: dict) -> list[str]:
-        parts = [
-            doc.get("signature_dish", ""),
-            doc.get("neighbourhood", ""),
-            doc.get("cuisine", ""),
-            doc.get("hawker_centre", ""),
-        ]
-        out: list[str] = []
-        for p in parts:
-            if p:
-                out.extend(re.findall(r"[a-z0-9]+", str(p).lower()))
-        return out
-
-    for d in bg:
-        bg_counters.update(tokens(d))
-    for d in docs:
-        counters.update(tokens(d))
-
-    scored: list[DiscoverClusterTerm] = []
-    bg_size = max(len(bg), 1)
-    for term, fg in counters.items():
-        if _clean_label_term(term) is None:
-            continue
-        bg_count = bg_counters.get(term, 0) + 1
-        score = (fg / len(docs)) / (bg_count / bg_size)
-        scored.append(DiscoverClusterTerm(term=term, score=score))
-    scored.sort(key=lambda t: t.score, reverse=True)
-    return scored[:10]
-
-
 def _cluster_local() -> DiscoverClustersResponse:
+    global _cluster_members, _cluster_seed_vectors, _cluster_labels
+    _cluster_members = {}
+    _cluster_seed_vectors = {}
+    _cluster_labels = {}
     t0 = time.time()
     docs = [
         d
@@ -665,14 +642,20 @@ def _cluster_local() -> DiscoverClustersResponse:
 
     clusters: list[DiscoverCluster] = []
     noise_count = 0
-    for idx, ((cuisine, area), members) in enumerate(
+    for idx, ((_cuisine, _area), members) in enumerate(
         sorted(buckets.items(), key=lambda x: len(x[1]), reverse=True), start=1
     ):
         if len(members) < MIN_CLUSTER_SIZE:
             noise_count += len(members)
             continue
-        terms = _local_significant_terms(members)
-        label, subtitle, search_query, filtered_terms = _describe_cluster(members, terms)
+        sig_terms = _local_significant_terms(members)
+        label, subtitle, search_query, terms = _describe_cluster(members, sig_terms)
+        if not terms:
+            noise_count += len(members)
+            continue
+        cluster_id = f"c{idx}"
+        _cluster_members[cluster_id] = [m["doc_id"] for m in members]
+        _cluster_labels[cluster_id] = label
         sample = [
             Hit(
                 doc_id=m["doc_id"],
@@ -686,30 +669,302 @@ def _cluster_local() -> DiscoverClustersResponse:
                 hero_image_url=m.get("hero_image_url"),
                 match_reason=label,
             )
-            for m in members[:5]
+            for m in members[:3]
         ]
         clusters.append(
             DiscoverCluster(
-                cluster_id=f"c{idx}",
+                cluster_id=cluster_id,
                 label=label,
                 subtitle=subtitle,
-                terms=filtered_terms,
+                terms=terms,
                 size=len(members),
                 sample_hits=sample,
                 search_query=search_query,
             )
         )
 
-    sorted_clusters = _sort_clusters(clusters[:12])
+    sorted_clusters = _sort_clusters(clusters)[:9]
+    clustered_count = sum(c.size for c in sorted_clusters)
+    total = len(docs) or 1
     return DiscoverClustersResponse(
         clusters=sorted_clusters,
         noise_count=noise_count,
         total_venues=len(docs),
+        clustered_count=clustered_count,
+        noise_pct=round(100 * noise_count / total, 1),
         took_ms=int((time.time() - t0) * 1000),
         engine="local_heuristic",
         vector_field="n/a",
-        summary=f"{len(sorted_clusters)} food scenes by cuisine and area (local mode)",
+        summary=f"{len(sorted_clusters)} scenes · local fallback (no Elasticsearch)",
     )
+
+
+def _source_fields() -> list[str]:
+    return [
+        "doc_id",
+        "title",
+        "description",
+        "signature_dish",
+        "dish_id",
+        "hawker_centre",
+        "neighbourhood",
+        "doc_type",
+        "location",
+        "hero_image_url",
+        "rating",
+        "price_range",
+    ]
+
+
+def _venue_display_key(hit: Hit) -> tuple[str, str]:
+    return (hit.title.strip().lower(), (hit.neighbourhood or "").strip().lower())
+
+
+def _dedupe_hits(hits: list[Hit], *, limit: int) -> list[Hit]:
+    """One row per venue name + area — synthetic corpus repeats chain names."""
+    seen_ids: set[str] = set()
+    seen_venues: set[tuple[str, str]] = set()
+    out: list[Hit] = []
+    for hit in hits:
+        if not hit.doc_id or hit.doc_id in seen_ids:
+            continue
+        key = _venue_display_key(hit)
+        if key in seen_venues:
+            continue
+        seen_ids.add(hit.doc_id)
+        seen_venues.add(key)
+        out.append(hit)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _fetch_member_rows(es, member_ids: list[str], vector_field: str) -> list[dict[str, Any]]:
+    unique_ids = list(dict.fromkeys(member_ids))
+    if not unique_ids:
+        return []
+    resp = es.search(
+        index=CORPUS_INDEX,
+        body={
+            "size": len(unique_ids),
+            "query": {"terms": {"doc_id": unique_ids}},
+            "_source": [
+                "doc_id",
+                "title",
+                "description",
+                "signature_dish",
+                "dish_id",
+                "hawker_centre",
+                "neighbourhood",
+                "planning_area",
+                "cuisine",
+                "vibes",
+                "doc_type",
+                "location",
+                "hero_image_url",
+                "rating",
+                "price_range",
+                vector_field,
+            ],
+        },
+    )
+    rows: list[dict[str, Any]] = []
+    for hit in resp.body["hits"]["hits"]:
+        src = hit["_source"]
+        vec = src.get(vector_field)
+        if not vec or not isinstance(vec, list):
+            continue
+        rows.append(
+            {
+                "doc_id": src.get("doc_id", hit["_id"]),
+                "_id": hit["_id"],
+                "vector": vec,
+                "source": src,
+            }
+        )
+    return rows
+
+
+def _greedy_diverse_member_hits(
+    member_rows: list[dict[str, Any]],
+    seed_vector: list[float],
+    label: str,
+    *,
+    size: int,
+) -> list[Hit]:
+    """MMR-lite fallback: rank by centroid similarity, keep one per venue name."""
+    ranked = sorted(
+        member_rows,
+        key=lambda row: _cosine(seed_vector, row["vector"]),
+        reverse=True,
+    )
+    seen_venues: set[tuple[str, str]] = set()
+    hits: list[Hit] = []
+    for row in ranked:
+        src = row["source"]
+        key = (
+            str(src.get("title", "")).strip().lower(),
+            str(src.get("neighbourhood") or src.get("planning_area") or "").strip().lower(),
+        )
+        if key in seen_venues:
+            continue
+        seen_venues.add(key)
+        hits.append(_row_to_hit(row, label))
+        if len(hits) >= size:
+            break
+    return hits
+
+
+def _hits_from_es_response(resp_body: dict, reason: str) -> list[Hit]:
+    hits: list[Hit] = []
+    for hit in resp_body.get("hits", {}).get("hits", []):
+        src = hit.get("_source", {})
+        hits.append(
+            Hit(
+                doc_id=src.get("doc_id", hit.get("_id", "")),
+                title=src.get("title", ""),
+                doc_type=src.get("doc_type", ""),
+                signature_dish=src.get("signature_dish"),
+                dish_id=src.get("dish_id"),
+                hawker_centre=src.get("hawker_centre"),
+                neighbourhood=src.get("neighbourhood"),
+                location=src.get("location"),
+                hero_image_url=src.get("hero_image_url"),
+                rating=src.get("rating"),
+                price_range=src.get("price_range"),
+                score=float(hit.get("_score") or 0),
+                match_reason=reason,
+            )
+        )
+    return hits
+
+
+def _explore_cluster_es(
+    cluster_id: str,
+    *,
+    lambda_mmr: float = 0.5,
+    size: int = 10,
+) -> DiscoverClusterExploreResponse:
+    """Article: diversify retriever (MMR) for cluster breadth."""
+    member_ids = _cluster_members.get(cluster_id)
+    vector = _cluster_seed_vectors.get(cluster_id)
+    if not member_ids or not vector:
+        raise ValueError(f"Unknown cluster {cluster_id} — refresh Discover first")
+
+    label = _cluster_labels.get(cluster_id, cluster_id)
+    t0 = time.time()
+    es = _client()
+    vector_field = _last_vector_field
+    unique_ids = list(dict.fromkeys(member_ids))
+    filters = [{"terms": {"doc_id": unique_ids}}, *_venue_filters()]
+    knn_retriever = {
+        "knn": {
+            "field": vector_field,
+            "query_vector": vector,
+            "k": min(len(unique_ids), max(size * 4, 20)),
+            "num_candidates": max(NUM_CANDIDATES, size * 8),
+            "filter": filters,
+        }
+    }
+    method = "knn"
+    note = "Diverse sample across cluster members"
+    hits: list[Hit] = []
+
+    body: dict[str, Any] = {
+        "size": size * 3,
+        "_source": _source_fields(),
+    }
+    try:
+        body["retriever"] = {
+            "diversify": {
+                "retriever": knn_retriever,
+                "field": vector_field,
+                "query_vector": vector,
+                "lambda": max(0.0, min(1.0, lambda_mmr)),
+            }
+        }
+        resp = es.search(index=CORPUS_INDEX, body=body)
+        method = "diversify"
+        note = "Diversify retriever (MMR) — subtopics across this scene"
+        hits = _dedupe_hits(_hits_from_es_response(resp.body, label), limit=size)
+    except Exception:
+        hits = []
+
+    if len(hits) < size:
+        member_rows = _fetch_member_rows(es, unique_ids, vector_field)
+        greedy = _greedy_diverse_member_hits(member_rows, vector, label, size=size)
+        seen = {h.doc_id for h in hits}
+        for h in greedy:
+            if h.doc_id not in seen:
+                hits.append(h)
+                seen.add(h.doc_id)
+            if len(hits) >= size:
+                break
+        hits = _dedupe_hits(hits, limit=size)
+
+    return DiscoverClusterExploreResponse(
+        cluster_id=cluster_id,
+        label=label,
+        hits=hits,
+        method=method,  # type: ignore[arg-type]
+        lambda_mmr=lambda_mmr,
+        took_ms=int((time.time() - t0) * 1000),
+        note=note,
+    )
+
+
+def _explore_cluster_local(cluster_id: str, *, size: int = 10) -> DiscoverClusterExploreResponse:
+    member_ids = _cluster_members.get(cluster_id)
+    if not member_ids:
+        raise ValueError(f"Unknown cluster {cluster_id}")
+    docs = {d["doc_id"]: d for d in load_local_corpus() if d.get("doc_type") in VENUE_DOC_TYPES}
+    members = [docs[did] for did in dict.fromkeys(member_ids) if did in docs]
+    label = _cluster_labels.get(cluster_id, cluster_id)
+    random.shuffle(members)
+    seen_venues: set[tuple[str, str]] = set()
+    hits: list[Hit] = []
+    for m in members:
+        key = (
+            str(m.get("title", "")).strip().lower(),
+            str(m.get("neighbourhood") or "").strip().lower(),
+        )
+        if key in seen_venues:
+            continue
+        seen_venues.add(key)
+        hits.append(
+            Hit(
+                doc_id=m["doc_id"],
+                title=m.get("title", ""),
+                doc_type=m.get("doc_type", ""),
+                signature_dish=m.get("signature_dish"),
+                dish_id=m.get("dish_id"),
+                hawker_centre=m.get("hawker_centre"),
+                neighbourhood=m.get("neighbourhood"),
+                location=m.get("location"),
+                hero_image_url=m.get("hero_image_url"),
+                match_reason=label,
+            )
+        )
+        if len(hits) >= size:
+            break
+    return DiscoverClusterExploreResponse(
+        cluster_id=cluster_id,
+        label=str(label),
+        hits=hits,
+        method="knn",
+        lambda_mmr=0.5,
+        took_ms=0,
+        note="Local mode sample",
+    )
+
+
+def explore_cluster(cluster_id: str, *, lambda_mmr: float = 0.5, size: int = 10) -> DiscoverClusterExploreResponse:
+    if cluster_id in _cluster_seed_vectors and es_configured():
+        try:
+            return _explore_cluster_es(cluster_id, lambda_mmr=lambda_mmr, size=size)
+        except Exception:
+            pass
+    return _explore_cluster_local(cluster_id, size=size)
 
 
 def discover_clusters(*, refresh: bool = False) -> DiscoverClustersResponse:
