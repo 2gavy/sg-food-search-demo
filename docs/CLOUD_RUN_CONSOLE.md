@@ -321,3 +321,11 @@ With **min instances = 0** and light demo traffic, expect **near free tier** for
 ## CLI alternative
 
 If you later install the Google Cloud SDK, see `scripts/deploy-cloudrun.sh` and the README **Deploy to Google Cloud Run** section.
+
+## Wizard broken? Use Cloud Shell instead
+
+If **Continuous deploy from repository** fails (`gen1_repo_trigger`, `INVALID_ARGUMENT`, etc.), **skip the wizard**:
+
+**→ [docs/CLOUD_SHELL_DEPLOY.md](CLOUD_SHELL_DEPLOY.md)** — open Cloud Shell in the browser, paste one script, done.
+
+Or set up **GitHub Actions** (`.github/workflows/deploy-cloudrun.yml`) — deploys on every push to `main` without Cloud Build triggers.

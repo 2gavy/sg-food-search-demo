@@ -92,6 +92,12 @@ Quick checklist:
 5. Set `ELASTICSEARCH_URL`, `ES_API_KEY`, optional `LLM_CONNECTOR_ID`
 6. Open the service URL; check `/health`
 
+### Wizard broken? (gen1 trigger errors)
+
+**→ [docs/CLOUD_SHELL_DEPLOY.md](docs/CLOUD_SHELL_DEPLOY.md)** — deploy from **Cloud Shell** in the browser (no local CLI, no manual triggers).
+
+Or use **GitHub Actions**: add secrets `GCP_SA_KEY`, `GCP_PROJECT_ID`, `ELASTICSEARCH_URL`, `ES_API_KEY` → push to `main`.
+
 ### CLI deploy (optional)
 
 Requires [Google Cloud SDK](https://cloud.google.com/sdk/docs/install):

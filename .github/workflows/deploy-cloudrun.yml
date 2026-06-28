@@ -1,0 +1,64 @@
+# Deploy sg-food-search-demo to Cloud Run on push to main.
+# Bypasses the Cloud Run console "continuous deploy" wizard (gen1 trigger bugs).
+#
+# ONE-TIME SETUP (Console):
+# 1. IAM → Service Accounts → Create → name: github-cloud-run-deploy
+# 2. Roles: Cloud Run Admin, Cloud Build Editor, Artifact Registry Administrator,
+#    Service Account User, Storage Admin
+# 3. Keys → Add key → JSON → copy entire file
+# 4. GitHub repo → Settings → Secrets → Actions:
+#    - GCP_SA_KEY          = paste JSON key
+#    - ELASTICSEARCH_URL   = your Elastic URL
+#    - ES_API_KEY          = your API key
+#    - LLM_CONNECTOR_ID    = optional (Concierge)
+
+name: Deploy Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-southeast1
+  SERVICE: sg-food-search-demo
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Set GCP project
+        run: gcloud config set project "${{ secrets.GCP_PROJECT_ID }}"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${{ env.SERVICE }}" \
+            --source . \
+            --region "${{ env.REGION }}" \
+            --allow-unauthenticated \
+            --memory 1Gi \
+            --cpu 1 \
+            --timeout 300 \
+            --port 8080 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --set-env-vars "ELASTICSEARCH_URL=${{ secrets.ELASTICSEARCH_URL }},ES_API_KEY=${{ secrets.ES_API_KEY }},LLM_CONNECTOR_ID=${{ secrets.LLM_CONNECTOR_ID }}"
+
+      - name: Print service URL
+        run: |
+          gcloud run services describe "${{ env.SERVICE }}" \
+            --region "${{ env.REGION }}" \
+            --format 'value(status.url)'
